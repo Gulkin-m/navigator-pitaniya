@@ -1,12 +1,10 @@
-// Навигатор питания — основной модуль (compact, fixed)
+// Навигатор питания — компактная версия под sidebar-дизайн
 (() => {
   'use strict';
 
   const STORE_KEY = 'np.v1';
   const Store = {
-    load() {
-      try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : defaultState(); } catch { return defaultState(); }
-    },
+    load() { try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : defaultState(); } catch { return defaultState(); } },
     save(s) { localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
   };
 
@@ -108,20 +106,19 @@
       recommendations: [], warnings: []
     }));
     const totalKcal = k || 1;
-    const items = [];
-    picks.forEach((g, name) => { const f = findFood(name); if (f) items.push({ food: f, grams: g }); });
-    items.forEach(it => {
-      const f = it.food; const kcal = f.kcal * it.grams / 100; const weight = kcal / totalKcal;
+    picks.forEach((g, name) => {
+      const f = findFood(name); if (!f) return;
+      const kcal = f.kcal * g / 100; const weight = kcal / totalKcal;
       let acc = 0;
       for (const s of slots) {
         acc += s.target_kcal_share / 100;
         if (weight <= acc || s === slots[slots.length - 1]) {
-          s.recommendations.push({
-            foodItemId: f.name, grams_raw: it.grams, kcal: Math.round(kcal),
-            protein_g: +(f.protein_g * it.grams / 100).toFixed(1),
-            fat_g: +(f.fat_g * it.grams / 100).toFixed(1),
-            carb_g: +(f.carb_g * it.grams / 100).toFixed(1),
-            fiber_g: +(f.fiber_g * it.grams / 100).toFixed(1), warnings: []
+          slots[slots.indexOf(s)].recommendations.push({
+            foodItemId: f.name, grams_raw: g, kcal: Math.round(kcal),
+            protein_g: +(f.protein_g * g / 100).toFixed(1),
+            fat_g: +(f.fat_g * g / 100).toFixed(1),
+            carb_g: +(f.carb_g * g / 100).toFixed(1),
+            fiber_g: +(f.fiber_g * g / 100).toFixed(1), warnings: []
           });
           break;
         }
@@ -152,32 +149,46 @@
     state: Store.load(), current: 'today',
     init() {
       this.state.targetToday = calcTargets(this.state.profile, this.state.phase);
-      if (!this.state.onboardingDone) { showHero(); } else { hideHero(); showApp(); }
-      paintRibbon(); bindEvents(); refreshAll();
+      updateSidenav();
+      paintRibbon();
+      bindEvents();
+      this.current = this.state.profile ? 'today' : 'profile';
+      updateSidenavActive(this.current);
+      refreshScreen(this.current);
     },
     go(name) {
       this.current = name;
-      $$('.dock__btn').forEach(b => b.classList.toggle('is-active', b.dataset.screenToggle === name));
-      const stage = $('#stage');
-      if (stage) stage.hidden = false;
+      updateSidenavActive(name);
+      closeSidenav();
       refreshScreen(name);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  function showHero() {
-    const h = $('.hero'); if (h) h.hidden = false;
-    $('.shell') && ($('.shell').hidden = true);
-    $('.stage') && ($('.stage').hidden = true);
-    $('.dock') && ($('.dock').hidden = true);
+  function updateSidenav() {
+    const name = S.state.profile ? (S.state.profile.name || (S.state.profile.sex === 'm' ? 'Вы' : 'Вы')) : 'Гость';
+    const phaseLabel = S.state.profile ? (S.state.phase === 'flare' ? 'обострение' : 'ремиссия') : 'анкета не заполнена';
+    const age = S.state.profile ? `${S.state.profile.age} лет` : '—';
+    const nameEl = $('#sidenav-name'); if (nameEl) nameEl.textContent = S.state.profile ? 'Вы' : 'Гость';
+    const metaEl = $('#sidenav-meta'); if (metaEl) metaEl.textContent = S.state.profile ? `${age} · ${phaseLabel}` : phaseLabel;
+    const p = S.state.profile ? (S.state.health ? 2 : 1) : 0;
+    document.documentElement.style.setProperty('--p', `${(p / 3) * 100}%`);
   }
-  function hideHero() {
-    const h = $('.hero'); if (h) h.hidden = true;
-    const sh = $('.shell'); if (sh) sh.hidden = false;
-    const st = $('.stage'); if (st) st.hidden = false;
-    const d = $('.dock'); if (d) d.hidden = false;
+
+  function updateSidenavActive(name) {
+    $$('.sidenav__item').forEach(b => {
+      const screen = b.dataset.screenToggle;
+      const isActive = screen === name || (screen === 'more' && name === 'settings');
+      b.classList.toggle('is-active', isActive);
+    });
   }
-  function showApp() { hideHero(); }
+
+  function closeSidenav() {
+    const nav = $('#sidenav'); if (nav) nav.classList.remove('is-open');
+  }
+  function toggleSidenav() {
+    const nav = $('#sidenav'); if (nav) nav.classList.toggle('is-open');
+  }
 
   function bindEvents() {
     document.body.addEventListener('click', onClick);
@@ -190,34 +201,16 @@
     const t = e.target.closest('[data-action], [data-screen-toggle], [data-phase], [data-tab], [data-allow], [data-forbid], [data-rm], [data-tol], [data-replace], [data-log]');
     if (!t) return;
     const a = t.dataset.action;
-    if (a === 'start') {
-      S.state.onboardingDone = true; Store.save(S.state);
-      hideHero(); showApp();
-      if (!S.state.profile) S.go('profile');
-      else if (!S.state.health) S.go('health');
-      else if ((S.state.foods || []).length < 3) S.go('foods');
-      else S.go('today');
-      return;
-    }
-    if (a === 'open-disclaimer') { S.go('disclaimer'); return; }
-    if (a === 'hide-ribbon') {
-      S.state.ribbonHidden = true; Store.save(S.state);
-      const r = $('#ribbon'); if (r) r.hidden = true; return;
-    }
-    if (a === 'open-day-plan') { S.go('plan'); return; }
-    if (a === 'open-diary') { S.go('diary'); return; }
-    if (a === 'open-symptoms') { S.go('symptoms'); return; }
-    if (a === 'regen-plan') {
-      S.state.plan = recommendDay(S.state, S.state.targetToday); Store.save(S.state); renderPlan(); return;
-    }
+    if (a === 'start' || a === 'nav-toggle') { toggleSidenav(); return; }
+    if (a === 'hide-ribbon') { S.state.ribbonHidden = true; Store.save(S.state); const r = $('#ribbon'); if (r) r.hidden = true; return; }
+    if (a === 'regen-plan') { S.state.plan = recommendDay(S.state, S.state.targetToday); Store.save(S.state); renderPlan(); return; }
     if (a === 'export') {
       const out = { meta: { app: 'Навигатор питания', exported_at: new Date().toISOString() }, data: S.state };
       const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url; link.download = 'navpit-' + new Date().toISOString().slice(0, 10) + '.json';
-      link.click(); URL.revokeObjectURL(url);
-      toast('Файл сохранён'); return;
+      link.click(); URL.revokeObjectURL(url); toast('Файл сохранён'); return;
     }
     if (a === 'reset') { if (confirm('Стереть все локальные данные?')) { localStorage.removeItem(STORE_KEY); location.reload(); } return; }
     const screen = t.dataset.screenToggle;
@@ -230,7 +223,7 @@
     if (phase) {
       S.state.phase = phase; S.state.targetToday = calcTargets(S.state.profile, phase); Store.save(S.state);
       $$('[data-phase]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.phase === phase)));
-      refreshToday(); return;
+      updateSidenav(); refreshToday(); return;
     }
     const tab = t.dataset.tab;
     if (tab) { $$('[data-tab]').forEach(x => x.classList.toggle('is-active', x === t)); renderAnalytics(tab); return; }
@@ -274,7 +267,7 @@
           if (!parsed.data) throw new Error('Не похоже на бэкап');
           S.state = Object.assign(defaultState(), parsed.data);
           Store.save(S.state); toast('Импортировано'); refreshAll();
-          S.go('today');
+          S.go(S.state.profile ? 'today' : 'profile');
         } catch (err) { toast('Ошибка: ' + err.message); }
       };
       r.readAsText(f);
@@ -304,6 +297,7 @@
     if (p.weightKg < 20 || p.weightKg > 400) return toast('Вес: 20–400 кг');
     S.state.profile = p; S.state.targetToday = calcTargets(p, S.state.phase); Store.save(S.state);
     toast('Анкета сохранена');
+    updateSidenav();
     S.go('health');
   }
 
@@ -319,7 +313,7 @@
     S.state.phase = S.state.health.phase;
     S.state.targetToday = calcTargets(S.state.profile, S.state.phase);
     Store.save(S.state); toast('Здоровье сохранено');
-    refreshToday();
+    refreshToday(); updateSidenav();
     S.go('foods');
   }
 
@@ -354,36 +348,14 @@
     toast('Сохранено');
   }
 
-  function addAllowed(name) {
-    S.state.forbidden = (S.state.forbidden || []).filter(n => n !== name);
-    if (!S.state.foods.includes(name)) S.state.foods.push(name);
-    Store.save(S.state); renderFoods(); refreshToday(); toast('«' + name + '» в разрешённых');
-  }
-  function addForbidden(name) {
-    S.state.foods = (S.state.foods || []).filter(n => n !== name);
-    S.state.forbidden = S.state.forbidden || [];
-    if (!S.state.forbidden.includes(name)) S.state.forbidden.push(name);
-    Store.save(S.state); renderFoods(); refreshToday(); toast('«' + name + '» исключён');
-  }
-  function removeAllowed(name) {
-    S.state.foods = S.state.foods.filter(n => n !== name);
-    Store.save(S.state); renderFoods();
-  }
-  function cycleTolerance(name) {
-    const cycle = ['unknown', 'suits', 'not_suits', 'causes_symptoms'];
-    const cur = S.state.tolerances[name] || 'unknown';
-    const next = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
-    S.state.tolerances[name] = next; Store.save(S.state);
-    renderFoods(); toast('«' + name + '»: ' + { suits: '👍', not_suits: '👎', causes_symptoms: '⚠️', unknown: '?' }[next]);
-  }
+  function addAllowed(name) { S.state.forbidden = (S.state.forbidden || []).filter(n => n !== name); if (!S.state.foods.includes(name)) S.state.foods.push(name); Store.save(S.state); renderFoods(); refreshToday(); toast('«' + name + '» в разрешённых'); }
+  function addForbidden(name) { S.state.foods = (S.state.foods || []).filter(n => n !== name); S.state.forbidden = S.state.forbidden || []; if (!S.state.forbidden.includes(name)) S.state.forbidden.push(name); Store.save(S.state); renderFoods(); refreshToday(); toast('«' + name + '» исключён'); }
+  function removeAllowed(name) { S.state.foods = S.state.foods.filter(n => n !== name); Store.save(S.state); renderFoods(); }
+  function cycleTolerance(name) { const cycle = ['unknown', 'suits', 'not_suits', 'causes_symptoms']; const cur = S.state.tolerances[name] || 'unknown'; const next = cycle[(cycle.indexOf(cur) + 1) % cycle.length]; S.state.tolerances[name] = next; Store.save(S.state); renderFoods(); toast('«' + name + '»: ' + { suits: '👍', not_suits: '👎', causes_symptoms: '⚠️', unknown: '?' }[next]); }
 
   function logMeal(slotIndex, foodName, grams) {
-    const e = {
-      id: 'me-' + Date.now(), date: new Date().toISOString().slice(0, 10),
-      slot_index: slotIndex, food_item: foodName, grams_raw: grams, deviation: 'as_planned'
-    };
-    S.state.meals.push(e); Store.save(S.state); refreshToday();
-    toast('Записано: ' + foodName + ' ' + grams + ' г');
+    const e = { id: 'me-' + Date.now(), date: new Date().toISOString().slice(0, 10), slot_index: slotIndex, food_item: foodName, grams_raw: grams, deviation: 'as_planned' };
+    S.state.meals.push(e); Store.save(S.state); refreshToday(); toast('Записано: ' + foodName + ' ' + grams + ' г');
   }
 
   function doReplace(slotIndex, oldName) {
@@ -410,12 +382,7 @@
     const pct = Math.min(current / target * 100, 100);
     const r = 36, c = 2 * Math.PI * r, dash = c * pct / 100;
     const color = pct > 110 ? '#C25B3A' : pct > 85 ? '#3F5E48' : '#6F8E78';
-    return '<div class="ring">' +
-      '<svg viewBox="0 0 88 88"><circle cx="44" cy="44" r="' + r + '" fill="none" stroke="#E8E2D5" stroke-width="6"/>' +
-      '<circle cx="44" cy="44" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + c + '" transform="rotate(-90 44 44)"/>' +
-      '<text x="44" y="48" text-anchor="middle" font-family="Fraunces,serif" font-size="13" fill="#1F2421">' + Math.round(pct) + '%</text></svg>' +
-      '<div class="ring__num">' + Math.round(current) + '<small>/ ' + Math.round(target) + ' ' + (unit || '') + '</small></div>' +
-      '<div class="ring__label">' + esc(label) + '</div></div>';
+    return '<div class="ring"><svg viewBox="0 0 88 88"><circle cx="44" cy="44" r="' + r + '" fill="none" stroke="#E8E2D5" stroke-width="6"/><circle cx="44" cy="44" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + c + '" transform="rotate(-90 44 44)"/><text x="44" y="48" text-anchor="middle" font-family="Fraunces,serif" font-size="13" fill="#1F2421">' + Math.round(pct) + '%</text></svg><div class="ring__num">' + Math.round(current) + '<small>/ ' + Math.round(target) + ' ' + (unit || '') + '</small></div><div class="ring__label">' + esc(label) + '</div></div>';
   }
 
   function dayTotals() {
@@ -433,31 +400,40 @@
     });
     return t;
   }
-
   function slotName(n) { return { breakfast: 'Завтрак', lunch: 'Обед', snack: 'Полдник', dinner: 'Ужин' }[n] || n; }
+
+  function renderWelcome() {
+    const stage = $('#stage'); if (!stage) return;
+    stage.innerHTML = '<div class="welcome">' +
+      '<div class="welcome__eyebrow"><span></span> личный навигатор питания</div>' +
+      '<h1 class="welcome__title">Перестаньте ломать голову <em>что приготовить</em></h1>' +
+      '<p class="welcome__sub">Граммы, 4 приёма пищи и список покупок — за <em>30 секунд</em>. Без подписки. Без рекламы. С заботой о кишечнике.</p>' +
+      '<div class="welcome__cta"><button class="btn btn--primary" data-screen-toggle="profile">Заполнить анкету →</button><button class="btn btn--ghost" data-screen-toggle="disclaimer">Прочитать дисклеймер</button></div>' +
+      '<div class="welcome__steps">' +
+      '<div class="welcome__step"><span class="welcome__step-num">1</span><strong>Анкета</strong>1 минута — возраст, вес, активность.</div>' +
+      '<div class="welcome__step"><span class="welcome__step-num">2</span><strong>Продукты</strong>Что едите, что исключаете.</div>' +
+      '<div class="welcome__step"><span class="welcome__step-num">3</span><strong>План</strong>Граммы на 4 приёма — по вашей фазе.</div>' +
+      '</div></div>';
+  }
 
   function renderToday() {
     const stage = $('#stage'); if (!stage) return;
+    if (!S.state.profile) { renderWelcome(); return; }
     const t = S.state.targetToday;
-    if (!t) {
-      stage.innerHTML = '<div class="card"><h2>Начнём с анкеты</h2><p class="muted">Это займёт меньше минуты.</p><button class="btn btn--primary" data-screen-toggle="profile">Заполнить анкету →</button></div>';
-      return;
-    }
+    if (!t) { renderWelcome(); return; }
     const tt = dayTotals();
     const plan = S.state.plan || recommendDay(S.state, t);
     S.state.plan = plan; Store.save(S.state);
-    const phaseSwitch = '<div style="display:flex;justify-content:center;margin-bottom:20px"><div class="tabs">' +
-      '<button class="tab ' + (S.state.phase === 'remission' ? 'is-active' : '') + '" data-phase="remission">ремиссия</button>' +
-      '<button class="tab ' + (S.state.phase === 'flare' ? 'is-active' : '') + '" data-phase="flare">обострение</button></div></div>';
+    const phaseSwitch = '<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><div class="tabs" style="max-width:none"><button class="tab ' + (S.state.phase === 'remission' ? 'is-active' : '') + '" data-phase="remission">ремиссия</button><button class="tab ' + (S.state.phase === 'flare' ? 'is-active' : '') + '" data-phase="flare">обострение</button></div></div>';
     let mealBlock;
     if (plan.error) {
-      mealBlock = '<div class="alert">' + esc(plan.error) + '<br><small>→ Откройте «Продукты» и добавьте ещё.</small></div>' +
-        '<div style="text-align:center;margin-top:16px"><button class="btn btn--primary" data-screen-toggle="foods">Добавить продукты →</button></div>';
+      mealBlock = '<div class="alert">' + esc(plan.error) + '<br><small>→ Откройте «Продукты» в меню слева.</small></div>' +
+        '<div style="text-align:center;margin-top:14px"><button class="btn btn--primary" data-screen-toggle="foods">Добавить продукты →</button></div>';
     } else {
       const h = new Date().getHours();
       const next = h < 10 ? plan.slots[0] : h < 14 ? plan.slots[1] : h < 18 ? plan.slots[2] : plan.slots[3];
       mealBlock = '<div class="next-meal"><h3>Ближайший приём</h3>' +
-        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin:8px 0 14px"><span class="num" style="font-size:22px">' + slotName(next.slot_name) + '</span><small>≈ ' + Math.round(t.kcal_target * next.target_kcal_share / 100) + ' ккал</small></div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 12px"><span class="num" style="font-size:18px">' + slotName(next.slot_name) + '</span><small>≈ ' + Math.round(t.kcal_target * next.target_kcal_share / 100) + ' ккал</small></div>' +
         '<ul>' + next.recommendations.map(r => '<li><span class="serif">' + esc(r.foodItemId) + '</span><small class="mono">' + r.grams_raw + ' г сыр.</small></li>').join('') + '</ul></div>';
     }
     stage.innerHTML = phaseSwitch + '<div class="counters">' +
@@ -468,10 +444,10 @@
       ringHTML('клетчатка', t.fiber_g_target, tt.fiber_g, 'г') +
       ringHTML('вода', t.water_ml_target, tt.water, 'мл') + '</div>' + mealBlock +
       '<div class="cta-row">' +
-      '<button class="btn btn--primary" data-screen-toggle="plan">Весь план на день →</button>' +
+      '<button class="btn btn--primary" data-screen-toggle="plan">Весь план →</button>' +
       '<button class="btn btn--ghost" data-screen-toggle="diary">Записать приём</button>' +
       '<button class="btn btn--ghost" data-screen-toggle="symptoms">Самочувствие</button></div>' +
-      '<details class="why"><summary>Почему так</summary><p>BMR по Mifflin → Katch-McArdle → измеренному. Граммовки подбираются жадно по белку с приоритетом щадящих продуктов. Если цели недостижимы — мы скажем.</p></details>';
+      '<details class="why"><summary>Почему так</summary><p>BMR по Mifflin → Katch-McArdle → измеренному. Граммовки подбираются жадно по белку. Если цели недостижимы — мы скажем.</p></details>';
   }
 
   function renderPlan() {
@@ -499,19 +475,17 @@
           '<button data-log="' + esc(r.foodItemId) + '" data-grams="' + r.grams_raw + '" data-slot="' + s.slot_index + '">съела ✓</button>' +
           '</div></div>').join('') + '</div></article>').join('') +
       (plan.errors.length ? '<div class="alert">' + plan.errors.map(esc).join('<br>') + '</div>' : '') +
-      '<div style="text-align:center;margin-top:24px"><button class="btn btn--ghost" data-action="regen-plan">Сформировать заново</button></div>';
+      '<div style="text-align:center;margin-top:20px"><button class="btn btn--ghost" data-action="regen-plan">Сформировать заново</button></div>';
   }
 
   function renderFoods() {
     const stage = $('#stage'); if (!stage) return;
-    const allowed = S.state.foods || [];
-    const forb = S.state.forbidden || [];
-    stage.innerHTML = '<div class="card"><h2>Свои продукты</h2>' +
-      '<p class="muted">Добавьте, что реально едите. Все данные на 100 г сырого веса.</p>' +
-      '<input id="food-search" type="search" placeholder="Найти в справочнике…" style="width:100%;padding:14px 16px;border-radius:12px;border:1.5px solid var(--fog);background:var(--cream);font-size:16px;margin-bottom:8px">' +
+    const allowed = S.state.foods || []; const forb = S.state.forbidden || [];
+    stage.innerHTML = '<div class="card"><h2>Свои продукты</h2><p class="muted">Все данные на 100 г сырого веса. Найдите продукты в поиске.</p>' +
+      '<input id="food-search" type="search" placeholder="Найти в справочнике…" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--fog);background:var(--cream);font-size:15px">' +
       '<div id="food-search-results" class="search-results" hidden></div></div>' +
       '<div class="card"><h3>Разрешённые <span class="tiny" style="font-weight:normal">' + allowed.length + '</span></h3>' +
-      (allowed.length ? '<ul class="chip-list">' + allowed.map(n => '<li>' + esc(n) + '<button data-tol="' + esc(n) + '">⚖</button><button data-rm="' + esc(n) + '">×</button></li>').join('') + '</ul>' : '<p class="muted">Пока пусто. Найдите продукт в поиске выше и нажмите «разрешить».</p>') + '</div>' +
+      (allowed.length ? '<ul class="chip-list">' + allowed.map(n => '<li>' + esc(n) + '<button data-tol="' + esc(n) + '">⚖</button><button data-rm="' + esc(n) + '">×</button></li>').join('') + '</ul>' : '<p class="muted">Пока пусто. Найдите продукт и нажмите «разрешить».</p>') + '</div>' +
       '<div class="card"><h3>Исключённые <span class="tiny" style="font-weight:normal">' + forb.length + '</span></h3>' +
       (forb.length ? '<ul class="chip-list">' + forb.map(n => '<li>' + esc(n) + '<button data-allow="' + esc(n) + '">↩</button></li>').join('') + '</ul>' : '<p class="muted">Список пуст.</p>') + '</div>';
   }
@@ -519,24 +493,23 @@
   function renderDiary() {
     const stage = $('#stage'); if (!stage) return;
     const today = new Date().toISOString().slice(0, 10);
-    const entries = S.state.meals.filter(m => m.date === today);
-    const tt = dayTotals();
+    const entries = S.state.meals.filter(m => m.date === today); const tt = dayTotals();
     stage.innerHTML = '<div class="card"><h2>Дневник питания</h2>' +
       (entries.length ? '<ul class="log">' + entries.map(e => '<li><span class="serif">' + esc(e.food_item) + '</span> · ' + e.grams_raw + ' г <small>' + slotName(['breakfast', 'lunch', 'snack', 'dinner'][e.slot_index - 1]) + '</small></li>').join('') + '</ul>' +
-        '<p class="muted small" style="margin-top:12px">Итого: ' + Math.round(tt.kcal) + ' ккал · Б' + Math.round(tt.protein_g) + ' Ж' + Math.round(tt.fat_g) + ' У' + Math.round(tt.carb_g) + ' · кл. ' + Math.round(tt.fiber_g) + '</p>' : '<p class="muted">Записей нет. Нажмите «съела ✓» в плане.</p>') + '</div>' +
+        '<p class="muted small" style="margin-top:10px">Итого: ' + Math.round(tt.kcal) + ' ккал · Б' + Math.round(tt.protein_g) + ' Ж' + Math.round(tt.fat_g) + ' У' + Math.round(tt.carb_g) + ' · кл. ' + Math.round(tt.fiber_g) + '</p>' : '<p class="muted">Записей нет. Нажмите «съела ✓» в плане.</p>') + '</div>' +
       '<div class="card"><h3>Голосовое сообщение</h3><p class="muted small">Нажмите и говорите. Отпустите — сохранится.</p>' +
       '<button class="btn btn--primary" id="rec-btn">🎙 Записать</button><div id="rec-status" class="muted small" style="margin-top:10px"></div></div>' +
       '<div class="card"><h3>Загрузить файл</h3><p class="muted small">Фото, аудио, документы — до 10 МБ.</p>' +
-      '<input id="upload-input" type="file" accept="image/*,audio/*,.pdf,.txt" style="display:block;margin-top:8px"><ul id="upload-list" class="log" style="margin-top:16px"></ul></div>';
+      '<input id="upload-input" type="file" accept="image/*,audio/*,.pdf,.txt" style="display:block;margin-top:8px"><ul id="upload-list" class="log" style="margin-top:14px"></ul></div>';
     bindRecorder(); bindUpload();
   }
 
   function renderSymptoms() {
     const stage = $('#stage'); if (!stage) return;
     const last = S.state.symptoms.find(s => s.red_flag);
-    stage.innerHTML = '<div class="section">' +
-      (last ? '<div class="alert" style="background:rgba(194,91,58,.16);border-color:rgba(194,91,58,.4);border-left:4px solid #C25B3A"><strong>🚨 Запись, похожая на red-flag</strong><br>' + esc(last.note || last.all_types.join(', ')) + '<br><small class="muted">При крови, высокой температуре, сильной боли — обратитесь к врачу.</small></div>' : '') +
-      '<div class="card"><h2>Самочувствие</h2>' +
+    stage.innerHTML = '<div class="card">' +
+      (last ? '<div class="alert" style="background:rgba(194,91,58,.16);border-color:rgba(194,91,58,.4);border-left:4px solid #C25B3A;margin-bottom:14px"><strong>🚨 Запись, похожая на red-flag</strong><br>' + esc(last.note || last.all_types.join(', ')) + '<br><small class="muted">При крови, температуре, сильной боли — обратитесь к врачу.</small></div>' : '') +
+      '<h2>Самочувствие</h2>' +
       '<form id="form-symptom" class="form"><fieldset><legend>Что беспокоит</legend><div class="chips">' +
       ['боль', 'вздутие', 'стул изменён', 'тошнота', 'кровь', 'температура', 'общая слабость', 'другое'].map(s =>
         '<label class="chip"><input type="checkbox" name="symptomType" value="' + s + '"><span>' + s + '</span></label>').join('') +
@@ -544,31 +517,25 @@
       '<label>Когда появилось<input type="datetime-local" name="datetime"></label>' +
       '<label>Связь с едой<input type="text" name="relatedFood" placeholder="напр.: после гречки вечером"></label>' +
       '<label>Что-то ещё важное<textarea name="note" placeholder="о чём не спросили"></textarea></label>' +
-      '<button class="btn btn--primary" type="submit">Записать</button></form></div>' +
-      (S.state.symptoms.length ? '<div class="card"><h3>История</h3><ul class="log">' + S.state.symptoms.slice(0, 30).map(s => '<li class="' + (s.red_flag ? 'flag' : '') + '"><strong class="serif">' + s.all_types.map(esc).join(', ') + '</strong> · ' + s.severity + '/10<small>' + new Date(s.datetime).toLocaleString('ru-RU') + ' · фаза «' + s.phase + '»</small>' + (s.note ? '<small>' + esc(s.note) + '</small>' : '') + (s.related_foods ? '<small>🍽 ' + esc(s.related_foods) + '</small>' : '') + '</li>').join('') + '</ul></div>' : '') + '</div>';
+      '<button class="btn btn--primary" type="submit">Записать</button></form>' +
+      (S.state.symptoms.length ? '<h3>История</h3><ul class="log">' + S.state.symptoms.slice(0, 30).map(s => '<li class="' + (s.red_flag ? 'flag' : '') + '"><strong class="serif">' + s.all_types.map(esc).join(', ') + '</strong> · ' + s.severity + '/10<small>' + new Date(s.datetime).toLocaleString('ru-RU') + ' · фаза «' + s.phase + '»</small>' + (s.note ? '<small>' + esc(s.note) + '</small>' : '') + (s.related_foods ? '<small>🍽 ' + esc(s.related_foods) + '</small>' : '') + '</li>').join('') + '</ul>' : '') + '</div>';
   }
 
   function renderAnalytics(period) {
     const stage = $('#stage'); if (!stage) return;
-    if (!S.state.meals.length) {
-      stage.innerHTML = '<div class="card"><h2>Аналитика</h2><p class="muted">Недостаточно данных. Заполняйте дневники.</p></div>'; return;
-    }
+    if (!S.state.meals.length) { stage.innerHTML = '<div class="card"><h2>Аналитика</h2><p class="muted">Недостаточно данных. Заполняйте дневники.</p></div>'; return; }
     const t = S.state.targetToday; const tt = dayTotals();
     const bars = [['ккал', t.kcal_target, tt.kcal], ['белок', t.protein_g_target, tt.protein_g], ['жиры', t.fat_g_target, tt.fat_g], ['углеводы', t.carb_g_target, tt.carb_g], ['клетч.', t.fiber_g_target, tt.fiber_g]];
     let barsHTML = '<div class="bars">' + bars.map(b => '<div class="bar" style="height:' + Math.min(b[2] / b[1] * 100, 110) + '%" data-label="' + b[0] + '"></div>').join('') + '</div>';
     if (period === 'week') {
       const days = []; const d = new Date();
       for (let i = 6; i >= 0; i--) { const x = new Date(d); x.setDate(x.getDate() - i); days.push({ date: x.toISOString().slice(0, 10), label: x.toLocaleDateString('ru-RU', { weekday: 'short' }), kcal: 0 }); }
-      days.forEach(day => {
-        S.state.meals.filter(m => m.date === day.date).forEach(e => {
-          const f = findFood(e.food_item); if (f) day.kcal += f.kcal * e.grams_raw / 100;
-        });
-      });
+      days.forEach(day => { S.state.meals.filter(m => m.date === day.date).forEach(e => { const f = findFood(e.food_item); if (f) day.kcal += f.kcal * e.grams_raw / 100; }); });
       barsHTML = '<div class="bars">' + days.map(d => '<div class="bar" style="height:' + Math.min(d.kcal / t.kcal_target * 100, 110) + '%" data-label="' + esc(d.label) + '"></div>').join('') + '</div>';
     }
     stage.innerHTML = '<div class="card"><h2>Аналитика</h2>' +
       '<div class="tabs"><button class="tab ' + (period === 'day' ? 'is-active' : '') + '" data-tab="day">День</button><button class="tab ' + (period === 'week' ? 'is-active' : '') + '" data-tab="week">Неделя</button></div>' +
-      barsHTML + '<p class="muted small" style="margin-top:24px">Гипотезы — не доказано. Решения принимайте с врачом.</p></div>';
+      barsHTML + '<p class="muted small" style="margin-top:20px">Гипотезы — не доказано.</p></div>';
   }
 
   function renderSettings() {
@@ -582,7 +549,7 @@
       '<input type="number" name="shareSnack" min="5" max="40" value="' + s.shares.snack + '" placeholder="Полдник %">' +
       '<input type="number" name="shareDinner" min="10" max="60" value="' + s.shares.dinner + '" placeholder="Ужин %">' +
       '</div></fieldset><button class="btn btn--primary" type="submit">Сохранить</button></form></div>' +
-      '<div class="card"><h3>Данные</h3><div style="display:flex;gap:10px;flex-wrap:wrap">' +
+      '<div class="card"><h3>Данные</h3><div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn btn--ghost" data-action="export">⬇ Экспорт</button>' +
       '<label class="btn btn--ghost" for="import-input" style="cursor:pointer">⬆ Импорт</label>' +
       '<input id="import-input" type="file" accept="application/json" style="display:none">' +
@@ -590,26 +557,34 @@
       '<div class="card"><h3>Дисклеймер</h3><p class="muted">Информационный помощник. Не заменяет врача. Рекомендации — справочно. При крови, температуре, сильной боли — обратитесь к врачу.</p></div>';
   }
 
-  function renderDisclaimer() {
+  function renderProfile() {
     const stage = $('#stage'); if (!stage) return;
-    stage.innerHTML = '<div class="card"><h2>Важно</h2>' +
-      '<p><strong>Навигатор питания</strong> — информационный помощник. Он <strong>не ставит диагнозы</strong>, <strong>не назначает лечение</strong> и <strong>не заменяет консультацию врача</strong>.</p>' +
-      '<ul style="margin:16px 0;padding-left:24px;color:var(--ink-soft)">' +
-      '<li style="margin:8px 0">Рекомендации носят <strong>справочный</strong> характер и требуют согласования с лечащим врачом.</li>' +
-      '<li style="margin:8px 0">При <strong>крови, высокой температуре, сильной боли, признаках обезвоживания</strong> — обратитесь к врачу.</li>' +
-      '<li style="margin:8px 0">При хронических заболеваниях рацион согласуется со специалистом.</li>' +
-      '<li style="margin:8px 0">Гипотезы переносимости не являются доказанными.</li></ul></div>';
+    stage.innerHTML = '<div class="card"><h2><em>1.</em> Анкета</h2><p class="muted">Соберём базу — потом менять можно в любой момент.</p>' +
+      '<form id="form-profile" class="form"><div class="row"><label>Пол<select name="sex"><option value="f">женский</option><option value="m">мужской</option></select></label><label>Возраст, лет<input type="number" name="age" min="1" max="120" required></label><label>Рост, см<input type="number" name="heightCm" min="50" max="250" required></label><label>Вес, кг<input type="number" name="weightKg" min="20" max="400" step="0.1" required></label></div><div class="row"><label>% жира (опц.)<input type="number" name="bodyFatPct" min="3" max="60" step="0.1"></label><label>Измеренный BMR (опц.)<input type="number" name="measuredBmrKcal" min="800" max="4000"></label></div>' +
+      '<fieldset><legend>Активность</legend><div class="chips"><label class="chip"><input type="radio" name="activityLevel" value="sedentary" required><span>сидячая</span></label><label class="chip"><input type="radio" name="activityLevel" value="light"><span>лёгкая</span></label><label class="chip"><input type="radio" name="activityLevel" value="moderate" checked><span>умеренная</span></label><label class="chip"><input type="radio" name="activityLevel" value="high"><span>высокая</span></label><label class="chip"><input type="radio" name="activityLevel" value="vhigh"><span>очень высокая</span></label></div></fieldset>' +
+      '<fieldset><legend>Цель</legend><div class="chips"><label class="chip"><input type="radio" name="goal" value="maintain" checked><span>поддержание</span></label><label class="chip"><input type="radio" name="goal" value="lose"><span>мягкое снижение</span></label><label class="chip"><input type="radio" name="goal" value="gain"><span>набор массы</span></label></div></fieldset>' +
+      '<label>Приёмов пищи в день<input type="number" name="mealsPerDay" min="2" max="6" value="4"></label>' +
+      '<button class="btn btn--primary" type="submit">Дальше → здоровье</button></form></div>';
   }
 
-  // SCREENS для шагов анкеты (без рендерера)
-  const SCREENS = {
-    profile: '<div class="card"><h2><em>1.</em> Анкета</h2><p class="muted">Соберём базу — потом менять можно в любой момент.</p><form id="form-profile" class="form"><div class="row"><label>Пол<select name="sex"><option value="f">женский</option><option value="m">мужской</option></select></label><label>Возраст, лет<input type="number" name="age" min="1" max="120" required></label><label>Рост, см<input type="number" name="heightCm" min="50" max="250" required></label><label>Вес, кг<input type="number" name="weightKg" min="20" max="400" step="0.1" required></label></div><div class="row"><label>% жира (опц.)<input type="number" name="bodyFatPct" min="3" max="60" step="0.1"></label><label>Измеренный BMR (опц.)<input type="number" name="measuredBmrKcal" min="800" max="4000"></label></div><fieldset><legend>Активность</legend><div class="chips"><label class="chip"><input type="radio" name="activityLevel" value="sedentary" required><span>сидячая</span></label><label class="chip"><input type="radio" name="activityLevel" value="light"><span>лёгкая</span></label><label class="chip"><input type="radio" name="activityLevel" value="moderate" checked><span>умеренная</span></label><label class="chip"><input type="radio" name="activityLevel" value="high"><span>высокая</span></label><label class="chip"><input type="radio" name="activityLevel" value="vhigh"><span>очень высокая</span></label></div></fieldset><fieldset><legend>Цель</legend><div class="chips"><label class="chip"><input type="radio" name="goal" value="maintain" checked><span>поддержание</span></label><label class="chip"><input type="radio" name="goal" value="lose"><span>мягкое снижение</span></label><label class="chip"><input type="radio" name="goal" value="gain"><span>набор массы</span></label></div></fieldset><label>Приёмов пищи в день<input type="number" name="mealsPerDay" min="2" max="6" value="4"></label><button class="btn btn--primary" type="submit">Дальше → здоровье</button></form></div>',
-    health: '<div class="card"><h2><em>2.</em> Здоровье</h2><p class="muted">Эта фаза меняет рекомендации: что щадить, а что исключить.</p><form id="form-health" class="form"><fieldset><legend>Текущая фаза</legend><div class="phase-toggle"><label class="phase"><input type="radio" name="phase" value="remission" checked><span>Ремиссия</span></label><label class="phase phase--warn"><input type="radio" name="phase" value="flare"><span>Обострение</span></label></div></fieldset><label>Диагнозы (через запятую)<input type="text" name="diagnoses" placeholder="напр.: бактериальный колит"></label><label>Аллергии<input type="text" name="allergies" placeholder="напр.: орехи, мёд"></label><label>Непереносимости<input type="text" name="intolerances" placeholder="напр.: лактоза, глютен"></label><label>Что-то важное, о чём не спросили<textarea name="free" rows="2" placeholder="напр.: непереносимость бобовых"></textarea></label><button class="btn btn--primary" type="submit">Дальше → продукты</button></form></div>'
-  };
+  function renderHealth() {
+    const stage = $('#stage'); if (!stage) return;
+    stage.innerHTML = '<div class="card"><h2><em>2.</em> Здоровье</h2><p class="muted">Эта фаза меняет рекомендации: что щадить, а что исключить.</p>' +
+      '<form id="form-health" class="form"><fieldset><legend>Текущая фаза</legend><div class="phase-toggle"><label class="phase"><input type="radio" name="phase" value="remission" checked><span>Ремиссия</span></label><label class="phase phase--warn"><input type="radio" name="phase" value="flare"><span>Обострение</span></label></div></fieldset>' +
+      '<label>Диагнозы (через запятую)<input type="text" name="diagnoses" placeholder="напр.: бактериальный колит"></label>' +
+      '<label>Аллергии<input type="text" name="allergies" placeholder="напр.: орехи, мёд"></label>' +
+      '<label>Непереносимости<input type="text" name="intolerances" placeholder="напр.: лактоза, глютен"></label>' +
+      '<label>Что-то важное, о чём не спросили<textarea name="free" rows="2" placeholder="напр.: непереносимость бобовых"></textarea></label>' +
+      '<button class="btn btn--primary" type="submit">Дальше → продукты</button></form></div>';
+  }
+
+  function renderDisclaimer() {
+    const stage = $('#stage'); if (!stage) return;
+    stage.innerHTML = '<div class="card"><h2>Важно</h2><p><strong>Навигатор питания</strong> — информационный помощник. Не ставит диагнозы, не назначает лечение, не заменяет врача. Рекомендации — справочно. При крови, температуре, сильной боли — обратитесь к врачу.</p></div>';
+  }
 
   function refreshScreen(name) {
-    const stage = $('#stage');
-    if (stage && SCREENS[name]) stage.innerHTML = SCREENS[name];
+    const stage = $('#stage'); if (!stage) return;
     if (name === 'today') renderToday();
     else if (name === 'plan') renderPlan();
     else if (name === 'foods') renderFoods();
@@ -617,6 +592,8 @@
     else if (name === 'symptoms') renderSymptoms();
     else if (name === 'analytics') renderAnalytics('day');
     else if (name === 'settings') renderSettings();
+    else if (name === 'profile') renderProfile();
+    else if (name === 'health') renderHealth();
     else if (name === 'disclaimer') renderDisclaimer();
   }
 
@@ -636,7 +613,7 @@
           status.innerHTML = '<audio controls src="' + url + '" style="width:100%;margin-top:8px"></audio><br><small>Готово.</small>';
           stream.getTracks().forEach(t => t.stop()); rec = null;
         };
-        rec.start(); status.textContent = 'Идёт запись… нажмите, чтобы остановить'; btn.textContent = '⏹ Остановить';
+        rec.start(); status.textContent = 'Идёт запись… нажмите, чтобы остановить'; btn.textContent = '⏹ Стоп';
       } catch (e) { status.textContent = 'Нет доступа к микрофону.'; }
     });
   }
@@ -658,9 +635,9 @@
 
   function paintRibbon() { const r = $('#ribbon'); if (r) r.hidden = !!S.state.ribbonHidden; }
   let toastTimer;
-  function toast(msg) { const el = $('#toast'); if (!el) return; el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 3000); }
+  function toast(msg) { const el = $('#toast'); if (!el) return; el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2500); }
   function refreshToday() { if (S.current === 'today') renderToday(); }
-  function refreshAll() { renderToday(); }
+  function refreshAll() { refreshScreen(S.current); }
 
   document.addEventListener('DOMContentLoaded', () => S.init());
 })();
