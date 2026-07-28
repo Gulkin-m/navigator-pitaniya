@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7C9885">
+<title>Навигатор питания</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap">
+</head>
+<body>
+
+<aside class="ribbon" id="ribbon">
+  <span class="ribbon__dot"></span>
+  <span class="ribbon__text">Информационный помощник. <strong>Не заменяет врача</strong>. Все решения согласуйте со специалистом.</span>
+  <button class="ribbon__close" aria-label="Закрыть напоминание" data-action="hide-ribbon">×</button>
+</aside>
+
+<header class="hero" data-screen="onboarding">
+  <div class="hero__art" id="hero-art" aria-hidden="true"></div>
+  <h1 class="hero__title"><em>Навигатор питания</em></h1>
+  <p class="hero__lead">Отвечает на вопрос <em>«что и сколько съесть сейчас»</em>, а не <em>«что ты съела вчера»</em>. Спокойно, по делу, для повседневной кухни.</p>
+  <div class="hero__cta">
+    <button class="btn btn--primary" data-action="start">Начать →</button>
+    <button class="btn btn--ghost" data-action="open-disclaimer">Прочитать дисклеймер</button>
+  </div>
+</header>
+
+<nav class="shell" aria-label="Основная навигация">
+  <div class="shell__brand">
+    <span class="shell__logo" aria-hidden="true">🥗</span>
+    <span class="shell__name">Навигатор</span>
+  </div>
+  <div class="shell__progress" id="setup-progress" title="Заполнение анкеты"></div>
+  <button class="shell__icon" data-screen-toggle="disclaimer" aria-label="Дисклеймер">ⓘ</button>
+</nav>
+
+<main class="stage" id="stage" hidden></main>
+
+<nav class="dock" aria-label="Главное меню">
+  <button class="dock__btn is-active" data-screen-toggle="today"><span>🏠</span><small>Сегодня</small></button>
+  <button class="dock__btn" data-screen-toggle="plan"><span>🗓</span><small>План</small></button>
+  <button class="dock__btn" data-screen-toggle="foods"><span>🥕</span><small>Продукты</small></button>
+  <button class="dock__btn" data-screen-toggle="diary"><span>📓</span><small>Дневник</small></button>
+  <button class="dock__btn" data-screen-toggle="more"><span>⋯</span><small>Ещё</small></button>
+</nav>
+
+<button class="fab" data-action="speech" hidden>🎤</button>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="seed.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
