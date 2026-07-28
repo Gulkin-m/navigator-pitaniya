@@ -3,10 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#7C9885">
+<meta name="theme-color" content="#F6F1E7">
 <title>Навигатор питания</title>
-<link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Gulkin-m/navigator-pitaniya@main/styles.css?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap">
@@ -16,31 +15,32 @@
 <aside class="ribbon" id="ribbon">
   <span class="ribbon__dot"></span>
   <span class="ribbon__text">Информационный помощник. <strong>Не заменяет врача</strong>. Все решения согласуйте со специалистом.</span>
-  <button class="ribbon__close" aria-label="Закрыть напоминание" data-action="hide-ribbon">×</button>
+  <button class="ribbon__close" aria-label="Закрыть" data-action="hide-ribbon">×</button>
 </aside>
 
-<header class="hero" data-screen="onboarding">
-  <div class="hero__art" id="hero-art" aria-hidden="true"></div>
-  <h1 class="hero__title"><em>Навигатор питания</em></h1>
-  <p class="hero__lead">Отвечает на вопрос <em>«что и сколько съесть сейчас»</em>, а не <em>«что ты съела вчера»</em>. Спокойно, по делу, для повседневной кухни.</p>
-  <div class="hero__cta">
-    <button class="btn btn--primary" data-action="start">Начать →</button>
-    <button class="btn btn--ghost" data-action="open-disclaimer">Прочитать дисклеймер</button>
+<header class="hero">
+  <div class="hero__bg"></div>
+  <div class="hero__inner">
+    <div class="hero__bowl"><span class="bowl-anim">🥗</span></div>
+    <div class="hero__eyebrow"><span></span> личный навигатор питания</div>
+    <h1 class="hero__title">Что <em>съесть</em><br>сейчас?</h1>
+    <p class="hero__sub">Проактивный план: <em>что</em> и <em>сколько</em> граммов — а не вчерашний отчёт. Спокойно, по делу, с заботой о кишечнике.</p>
+    <div class="hero__cta">
+      <button class="btn btn--primary" data-action="start">Начать →</button>
+      <button class="btn btn--ghost" data-screen-toggle="disclaimer">Прочитать дисклеймер</button>
+    </div>
   </div>
 </header>
 
-<nav class="shell" aria-label="Основная навигация">
-  <div class="shell__brand">
-    <span class="shell__logo" aria-hidden="true">🥗</span>
-    <span class="shell__name">Навигатор</span>
-  </div>
-  <div class="shell__progress" id="setup-progress" title="Заполнение анкеты"></div>
+<nav class="shell">
+  <div class="shell__brand">Навигатор <em>питания</em></div>
+  <div class="shell__progress" id="progress"></div>
   <button class="shell__icon" data-screen-toggle="disclaimer" aria-label="Дисклеймер">ⓘ</button>
 </nav>
 
-<main class="stage" id="stage" hidden></main>
+<main class="stage" id="stage"></main>
 
-<nav class="dock" aria-label="Главное меню">
+<nav class="dock">
   <button class="dock__btn is-active" data-screen-toggle="today"><span>🏠</span><small>Сегодня</small></button>
   <button class="dock__btn" data-screen-toggle="plan"><span>🗓</span><small>План</small></button>
   <button class="dock__btn" data-screen-toggle="foods"><span>🥕</span><small>Продукты</small></button>
@@ -48,12 +48,10 @@
   <button class="dock__btn" data-screen-toggle="more"><span>⋯</span><small>Ещё</small></button>
 </nav>
 
-<button class="fab" data-action="speech" hidden>🎤</button>
-
 <div class="toast" id="toast" hidden></div>
 
-<script src="seed.js"></script>
-<script src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Gulkin-m/navigator-pitaniya@main/seed.js?v=2"></script>
+<script src="https://cdn.jsdelivr.net/gh/Gulkin-m/navigator-pitaniya@main/app.js?v=2"></script>
 
 </body>
 </html>
