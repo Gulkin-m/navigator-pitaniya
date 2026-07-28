@@ -1,217 +1,987 @@
-(()=>{'use strict';
-const STORE_KEY='np.v1',IDB_NAME='np-blobs';
-const Store={load(){try{return JSON.parse(localStorage.getItem(STORE_KEY))||defaultState()}catch{return defaultState()}},save(s){localStorage.setItem(STORE_KEY,JSON.stringify(s))},clear(){localStorage.removeItem(STORE_KEY)}};
-function defaultState(){return{profile:null,health:null,phase:'remission',foods:[],forbidden:[],tolerances:{},manualFoods:[],targetToday:null,plan:null,meals:[],symptoms:[],settings:{mealsPerDay:4,shares:{breakfast:27,lunch:33,snack:12,dinner:28},notif:{meals:true,symptoms:true,diary:true}},uploadedFiles:[],ribbonHidden:false,onboardingDone:false}}
-function openIDB(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);r.onupgradeneeded=()=>r.result.createObjectStore('blobs');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-async function putBlob(k,b){const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction('blobs','readwrite');tx.objectStore('blobs').put({key:k,blob:b,date:Date.now()},k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
-async function getBlob(k){const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction('blobs','readonly');const req=tx.objectStore('blobs').get(k);req.onsuccess=()=>res(req.result?.blob);req.onerror=()=>rej(req.error)})}
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-const ACTIVITY={sedentary:1.2,light:1.375,moderate:1.55,high:1.725,vhigh:1.9},GOAL_K={maintain:0,lose:-0.1,gain:+0.1};
-function calcBMR(p){if(p.measuredBmrKcal)return{bmr:p.measuredBmrKcal,method:'измеренный'};if(p.bodyFatPct){const lbm=p.weightKg*(1-p.bodyFatPct/100);return{bmr:370+21.6*lbm,method:'Katch-McArdle'}}const s=p.sex==='m'?5:-161;return{bmr:10*p.weightKg+6.25*p.heightCm+s-5*p.age,method:'Mifflin-St Jeor'}}
-function calcTargets(p,phase='remission'){if(!p)return null;const{bmr,method}=calcBMR(p);const tdee=bmr*ACTIVITY[p.activityLevel]*(1+(GOAL_K[p.goal]||0));const proteinPerKg=phase==='flare'?1.3:1.0;const protein_g_target=Math.min(p.weightKg*proteinPerKg,tdee*0.35/4);const fatPct=phase==='flare'?0.25:0.30;const fat_g_target=(tdee*fatPct)/9;const proteinKcal=protein_g_target*4;const fatKcal=fat_g_target*9;const carbKcal=Math.max(tdee-proteinKcal-fatKcal,0);const carb_g_target=carbKcal/4;const fiber_g_target=phase==='flare'?Math.min((tdee/1000)*8,14):(tdee/1000)*14;const water_ml_target=phase==='flare'?2500:2000;const sodium_mg_limit=2300;const sugar_g_limit=(tdee*0.10)/4;return{kcal_target:Math.round(tdee),protein_g_target:Math.round(protein_g_target),fat_g_target:Math.round(fat_g_target),carb_g_target:Math.round(carb_g_target),fiber_g_target:Math.round(fiber_g_target),water_ml_target:Math.round(water_ml_target),sodium_mg_limit:Math.round(sodium_mg_limit),sugar_g_limit:Math.round(sugar_g_limit),calc_method:method,tolerance_band_pct:10}}
-function allFoods(s){const m=s.manualFoods.map(f=>({...f,_manual:true}));return[...window.SEED_FOODS,...m]}
-function findFood(s,n){return allFoods(s).find(f=>f.name===n)}
-function recommendDay(state,targets){const errors=[];if(!targets)return{error:'Сначала заполните анкету.'};if(!state.foods||state.foods.length===0)return{error:'Добавьте разрешённые продукты.'};const tol=state.tolerances||{};const forbidden=new Set(state.forbidden||[]);let candidates=state.foods.map(n=>findFood(state,n)).filter(Boolean).filter(f=>!forbidden.has(f.name)).filter(f=>!(tol[f.name]==='not_suits'||tol[f.name]==='causes_symptoms')).filter(f=>{if(state.phase==='flare'){if((f.irritants||[]).includes('insoluble_fiber'))return false;if((f.irritants||[]).includes('fat')&&f.fat_g>=15)return false;if((f.irritants||[]).includes('caffeine'))return false;if((f.irritants||[]).includes('spicy'))return false}return true});if(candidates.length<3)return{error:'Из текущего списка слишком мало продуктов подходит. Расширьте список разрешённых.'};const scoreProtein=f=>f.protein_g*4-(f.irritants.includes('fat')?2:0);candidates.sort((a,b)=>scoreProtein(b)-scoreProtein(a));const picks=new Map();const picked=(n,g)=>picks.set(n,(picks.get(n)||0)+g);let proteinGot=0,fatGot=0,carbGot=0,fiberGot=0,kcalGot=0;function addUp(f,g){proteinGot+=f.protein_g*g/100;fatGot+=f.fat_g*g/100;carbGot+=f.carb_g*g/100;fiberGot+=f.fiber_g*g/100;kcalGot+=f.kcal*g/100}for(const f of candidates){if(proteinGot>=targets.protein_g_target*0.9)break;const g=clamp(round5(Math.min(200,(targets.protein_g_target-proteinGot)*100/Math.max(f.protein_g,1))),20,200);if(picks.has(f.name))continue;picked(f.name,g);addUp(f,g)}for(const f of[...candidates].sort((a,b)=>(b.fat_g+b.carb_g)-(a.fat_g+a.carb_g))){if(fatGot>=targets.fat_g_target*0.9&&carbGot>=targets.carb_g_target*0.9)break;if(picks.has(f.name))continue;const g=clamp(round5(80),20,200);picked(f.name,g);addUp(f,g)}if(fiberGot<targets.fiber_g_target*0.8){const sol=candidates.find(f=>f.fiber_type==='soluble'&&!picks.has(f.name));if(sol){picked(sol.name,100);addUp(sol,100)}}const shares=state.settings.shares||{breakfast:27,lunch:33,snack:12,dinner:28};const sumShare=Object.values(shares).reduce((a,b)=>a+b,0)||100;const slots=['breakfast','lunch','snack','dinner'].map((name,idx)=>({slot_index:idx+1,slot_name:name,target_kcal_share:shares[name]/sumShare*100,recommendations:[],warnings:[]}));const totalKcal=kcalGot||1;const items=[...picks.entries()].map(([name,grams])=>{const f=findFood(state,name);return{name,grams,f}});items.forEach(it=>{const f=it.f;const kcal=(f.kcal*it.grams)/100;const weight=kcal/totalKcal;let acc=0;for(const s of slots){acc+=s.target_kcal_share/100;if(weight<=acc||s===slots[slots.length-1]){s.recommendations.push({foodItemId:f.name,grams_raw:it.grams,kcal:Math.round(kcal),protein_g:round1(f.protein_g*it.grams/100),fat_g:round1(f.fat_g*it.grams/100),carb_g:round1(f.carb_g*it.grams/100),fiber_g:round1(f.fiber_g*it.grams/100),warnings:[]});break}}});slots.forEach((s,i)=>{s.recommendations.forEach(r=>{const f=findFood(state,r.foodItemId);if(!f)return;if(state.phase==='flare'){if((f.irritants||[]).includes('fat'))s.warnings.push({type:'irritant',severity:'warning',message:'Жирный продукт в обострении — понаблюдайте.'});if((f.irritants||[]).includes('insoluble_fiber'))s.warnings.push({type:'fiber',severity:'warning',message:'Нерастворимая клетчатка — в обострении осторожно.'});if((f.irritants||[]).includes('caffeine'))s.warnings.push({type:'irritant',severity:'warning',message:'Кофеин может раздражать ЖКТ.'})}if(i===3&&(f.irritants||[]).includes('fat')){s.warnings.push({type:'irritant',severity:'info',message:'Жирное на ночь — нежелательно.'})}})});const t=targets;const totals={kcal:round1(kcalGot),protein_g:round1(proteinGot),fat_g:round1(fatGot),carb_g:round1(carbGot),fiber_g:round1(fiberGot)};if(kcalGot<t.kcal_target*0.7)errors.push('Цели недостижимы из текущего списка. Не хватает калорий. Расширьте список продуктов.');if(proteinGot<t.protein_g_target*0.7)errors.push('Белка мало ('+totals.protein_g+' из '+t.protein_g_target+' г). Добавьте белковых продуктов.');if(fiberGot>t.fiber_g_target*1.1&&state.phase==='flare')errors.push('Клетчатка выше цели при обострении. Сократите овощи с грубыми волокнами.');return{slots,totals,errors,calc_method:t.calc_method}}
-function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-function round5(v){return Math.round(v/5)*5}
-function round1(v){return Math.round(v*10)/10}
-const RED_FLAGS=new Set(['blood','fever']);
-function isRedFlag(e){if(RED_FLAGS.has(e.symptom_type))return true;if(e.severity>=8)return true;if(e.symptom_type==='pain'&&e.severity>=6)return true;return false}
-const Voice={recorder:null,stream:null,chunks:null,startTs:null,recognition:null,recOn:false,async start(){if(!navigator.mediaDevices||!window.MediaRecorder){toast('Запись голоса не поддерживается этим браузером. Напишите текстом.');return false}try{this.stream=await navigator.mediaDevices.getUserMedia({audio:true});this.recorder=new MediaRecorder(this.stream);this.chunks=[];this.recorder.ondataavailable=e=>e.data.size&&this.chunks.push(e.data);this.recorder.start();this.startTs=Date.now();return true}catch(e){toast('Нет доступа к микрофону. Разрешите доступ в настройках браузера.');return false}},async stop(){return new Promise(res=>{if(!this.recorder)return res(null);this.recorder.onstop=async()=>{const blob=new Blob(this.chunks,{type:this.recorder.mimeType||'audio/webm'});this.stream.getTracks().forEach(t=>t.stop());this.recorder=null;const key='voice-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);await putBlob(key,blob);res({key,blob,duration:Math.round((Date.now()-this.startTs)/1000)})};this.recorder.stop()})},speechStart(field){const Rec=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Rec){toast('Голосовой ввод не поддерживается. Напишите текстом.');return null}if(this.recOn){this.recognition?.stop();return null}const r=new Rec();r.lang='ru-RU';r.interimResults=true;r.continuous=false;const f=typeof field==='string'?document.querySelector(field):field;r.onresult=e=>{let txt='';for(let i=e.resultIndex;i<e.results.length;i++)txt+=e.results[i][0].transcript;if(f)f.value=(f.value?f.value+' ':'')+txt};r.onerror=e=>toast('Не удалось распознать речь: '+e.error);r.onend=()=>this.recOn=false;r.start();this.recognition=r;this.recOn=true;toast('Слушаю… говорите');return r}};
-const SCREENS={profile:`
-<section class="screen"><h2><em>1.</em> Анкета</h2><p class="muted">Соберём базу — потом менять можно в любой момент.</p>
-<form id="form-profile" class="form">
-<div class="grid grid--2"><label>Пол<select name="sex"><option value="f">женский</option><option value="m">мужской</option></select></label>
-<label>Возраст, лет<input type="number" name="age" min="1" max="120" required></label>
-<label>Рост, см<input type="number" name="heightCm" min="50" max="250" required></label>
-<label>Вес, кг<input type="number" name="weightKg" min="20" max="400" step="0.1" required></label>
-<label>% жира (опц.)<input type="number" name="bodyFatPct" min="3" max="60" step="0.1"></label>
-<label>Измеренный BMR (опц.)<input type="number" name="measuredBmrKcal" min="800" max="4000"></label></div>
-<fieldset><legend>Активность</legend><div class="chips">
-<label class="chip"><input type="radio" name="activityLevel" value="sedentary" required><span>сидячая</span></label>
-<label class="chip"><input type="radio" name="activityLevel" value="light"><span>лёгкая</span></label>
-<label class="chip"><input type="radio" name="activityLevel" value="moderate"><span>умеренная</span></label>
-<label class="chip"><input type="radio" name="activityLevel" value="high"><span>высокая</span></label>
-<label class="chip"><input type="radio" name="activityLevel" value="vhigh"><span>очень высокая</span></label>
-</div></fieldset>
-<fieldset><legend>Цель</legend><div class="chips">
-<label class="chip"><input type="radio" name="goal" value="maintain" checked><span>поддержание</span></label>
-<label class="chip"><input type="radio" name="goal" value="lose"><span>мягкое снижение</span></label>
-<label class="chip"><input type="radio" name="goal" value="gain"><span>набор массы</span></label>
-</div></fieldset>
-<label>Приёмов пищи в день<input type="number" name="mealsPerDay" min="2" max="6" value="4"></label>
-<button class="btn btn--primary" type="submit">Дальше → здоровье</button>
-</form></section>`,health:`
-<section class="screen"><h2><em>2.</em> Здоровье</h2><p class="muted">Эта фаза меняет рекомендации: что щадить, а что исключить.</p>
-<form id="form-health" class="form">
-<fieldset><legend>Текущая фаза</legend><div class="phase-toggle">
-<label class="phase"><input type="radio" name="phase" value="remission" checked><span>Ремиссия</span></label>
-<label class="phase phase--warn"><input type="radio" name="phase" value="flare"><span>Обострение</span></label>
-</div></fieldset>
-<label>Диагнозы (через запятую)<input type="text" name="diagnoses" placeholder="напр.: бактериальный колит"></label>
-<label>Аллергии<input type="text" name="allergies" placeholder="напр.: орехи, мёд"></label>
-<label>Непереносимости<input type="text" name="intolerances" placeholder="напр.: лактоза, глютен"></label>
-<label>Лекарства / добавки<textarea name="medications" rows="2" placeholder="напр.: витамин D 2000 МЕ/день"></textarea></label>
-<label>Что-то важное, о чём не спросили<textarea name="free" rows="2" placeholder="напр.: непереносимость бобовых"></textarea></label>
-<button class="btn btn--primary" type="submit">Дальше → продукты</button>
-</form></section>`,foods:`
-<section class="screen"><h2 id="t-foods"><em>3.</em> Свои продукты</h2><p class="muted">Добавьте то, что вы реально едите. Все данные — на 100 г <strong>сырого</strong> веса.</p>
-<form id="form-add-food" class="form form--inline">
-<input type="search" id="food-search" placeholder="Найти в справочнике…" autocomplete="off">
-<button class="btn btn--ghost" type="button" data-action="open-manual">+ Свой продукт</button>
-</form><div class="result-list" id="food-search-results" hidden></div>
-<h3 class="section-h">Разрешённые</h3>
-<ul class="chip-list" id="allowed-list"></ul>
-<h3 class="section-h">Запрещённые <small>(исключаются из плана)</small></h3>
-<ul class="chip-list" id="forbidden-list"></ul>
-</section>`,today:`<section class="screen"><div id="today-content"></div></section>`,plan:`
-<section class="screen"><h2>План на день</h2><p class="muted">Граммы — <strong>сырой вес</strong>.</p>
-<div id="plan-error" class="alert" hidden></div>
-<div id="plan-root"></div>
-<div class="cta-row"><button class="btn btn--primary" data-action="regen-plan">Сформировать заново</button></div>
-</section>`,diary:`
-<section class="screen"><h2>Дневник питания</h2><p class="muted">Записывайте факт или нажмите <em>«съел(а) как план»</em> в один тап.</p>
-<div id="diary-root"></div>
-<div class="cta-row">
-<button class="btn btn--primary" data-action="log-from-rings">Записать приём</button>
-<button class="btn btn--ghost" data-action="rec-voice" id="rec-voice-btn">🎙 Записать голосовое</button>
-</div>
-<div class="recorder" id="recorder" hidden>
-<div class="recorder__pulse" aria-hidden="true"></div>
-<p id="recorder-status">Идёт запись… нажмите, чтобы остановить</p>
-<div id="recorder-playback"></div>
-</div>
-<h3 class="section-h">Загрузить файл</h3>
-<input id="upload-input" type="file" accept="image/*,audio/*,.pdf,.txt" hidden>
-<button class="btn btn--ghost" onclick="document.getElementById('upload-input').click()">📎 Выбрать файл</button>
-<div id="upload-list" class="upload-list"></div>
-</section>`,symptoms:`
-<section class="screen"><h2>Самочувствие</h2>
-<div id="red-flag-banner" class="red-flag" hidden></div>
-<form id="form-symptom" class="form">
-<fieldset><legend>Что беспокоит</legend><div class="chips">
-<label class="chip"><input type="checkbox" name="symptomType" value="pain"><span>боль</span></label>
-<label class="chip"><input type="checkbox" name="symptomType" value="bloating"><span>вздутие</span></label>
-<label class="chip"><input type="checkbox" name="symptomType" value="stool"><span>стул изменён</span></label>
-<label class="chip"><input type="checkbox" name="symptomType" value="nausea"><span>тошнота</span></label>
-<label class="chip"><input type="checkbox" name="symptomType" value="blood"><span>кровь</span></label>
-<label class="chip"><input type="checkbox" name="symptomType" value="fever"><span>температура</span></label>
-<label class="chip"><input type="checkbox" name="symptomType" value="general"><span>общая слабость</span></label>
-<label class="chip"><input type="checkbox" name="symptomType" value="other"><span>другое</span></label>
-</div></fieldset>
-<label>Тяжесть: <output id="sev-out">3</output>/10
-<input type="range" name="severity" min="0" max="10" value="3">
-</label>
-<label>Когда появилось<input type="datetime-local" name="datetime"></label>
-<label>Связь с едой (свободный ввод)<textarea name="relatedFood" rows="2" placeholder="напр.: после гречки вечером"></textarea></label>
-<label>Голосовое описание<button type="button" class="btn btn--ghost" data-action="speech">🎤 Диктовать</button></label>
-<label>Что-то ещё важное<textarea name="note" rows="2" placeholder="о чём не спросили"></textarea></label>
-<button class="btn btn--primary" type="submit">Записать</button>
-</form>
-<h3 class="section-h">История</h3>
-<ul id="symptom-history" class="log"></ul>
-</section>`,analytics:`
-<section class="screen"><h2>Аналитика</h2>
-<div class="tabs">
-<button class="tab is-active" data-period="day">День</button>
-<button class="tab" data-period="week">Неделя</button>
-</div>
-<div id="analytics-root"></div>
-<p class="note small">Любые корреляции — гипотезы. Решения принимайте с врачом.</p>
-</section>`,settings:`
-<section class="screen"><h2>Настройки</h2>
-<form id="form-settings" class="form">
-<label>Приёмов пищи в день<input type="number" name="mealsPerDay" min="2" max="6"></label>
-<fieldset><legend>Доли калорий по приёмам</legend>
-<div class="grid grid--4">
-<label>Завтрак<input type="number" name="shareBreakfast" min="10" max="60" step="1" value="27"></label>
-<label>Обед<input type="number" name="shareLunch" min="10" max="60" step="1" value="33"></label>
-<label>Полдник<input type="number" name="shareSnack" min="5" max="40" step="1" value="12"></label>
-<label>Ужин<input type="number" name="shareDinner" min="10" max="60" step="1" value="28"></label>
-</div><p class="note small" id="share-sum">Σ 100%</p></fieldset>
-<fieldset><legend>Уведомления</legend>
-<label class="check"><input type="checkbox" name="notifMeals"><span>напоминать о приёмах пищи</span></label>
-<label class="check"><input type="checkbox" name="notifSymptoms"><span>напоминать записать самочувствие вечером</span></label>
-<label class="check"><input type="checkbox" name="notifDiary"><span>напоминать заполнить дневник</span></label>
-</fieldset>
-<button class="btn btn--primary" type="submit">Сохранить</button>
-</form>
-<h3 class="section-h">Данные</h3>
-<div class="cta-row">
-<button class="btn btn--ghost" data-action="export">⬇ Экспорт (резервная копия)</button>
-<input id="import-input" type="file" accept="application/json" hidden>
-<button class="btn btn--ghost" onclick="document.getElementById('import-input').click()">⬆ Импорт</button>
-<button class="btn btn--danger" data-action="reset">Стереть всё</button>
-</div>
-<p class="note small">Все данные хранятся только на вашем устройстве. Никаких серверов.</p>
-</section>`,disclaimer:`
-<section class="screen"><h2>Важно</h2>
-<div class="card">
-<p><strong>Навигатор питания</strong> — информационно-вспомогательный инструмент. Он <strong>не ставит диагнозы</strong>, <strong>не назначает лечение</strong> и <strong>не заменяет консультацию врача</strong>.</p>
-<ul>
-<li>Рекомендации носят <strong>справочный</strong> характер и требуют согласования с лечащим врачом и/или диетологом.</li>
-<li>При <strong>крови, высокой температуре, сильной боли, признаках обезвоживания, резком ухудшении</strong> — необходимо обратиться к врачу.</li>
-<li>При хронических заболеваниях рацион должен согласовываться со специалистом.</li>
-<li>Любые «гипотезы переносимости» не являются доказанными.</li>
-</ul></div></section>`};
-const S={state:Store.load(),current:'today',init(){this.state.targetToday=calcTargets(this.state.profile,this.state.phase);if(!this.state.onboardingDone){showHero()}else{hideHero();showApp()}paintRibbon();bindGlobalUI();bindAll();refreshAll();registerSW()},go(name){document.querySelectorAll('[data-screen]').forEach(el=>el.hidden=el.dataset.screen!==name);document.querySelectorAll('.dock__btn').forEach(b=>b.classList.toggle('is-active',b.dataset.screenToggle===name));this.current=name;refreshScreen(name);window.scrollTo({top:0,behavior:'smooth'})}};
-function showHero(){document.querySelector('.hero').hidden=false;document.querySelector('.shell').hidden=true;document.querySelector('.stage').hidden=true;document.querySelector('.dock').hidden=true}
-function hideHero(){document.querySelector('.hero').hidden=true;document.querySelector('.shell').hidden=false;document.querySelector('.stage').hidden=false;document.querySelector('.dock').hidden=false}
-function showApp(){hideHero()}
-function bindGlobalUI(){document.body.addEventListener('click',onClick);document.body.addEventListener('input',onInput);document.body.addEventListener('submit',onSubmit)}
-function onClick(e){const t=e.target.closest('[data-action],[data-screen-toggle],[data-phase],[data-period]');if(!t)return;const a=t.dataset.action;if(a==='start'){S.state.onboardingDone=true;Store.save(S.state);hideHero();mountHeroArt();showApp();if(!S.state.profile)S.go('profile');else if(!S.state.health)S.go('health');else if((S.state.foods||[]).length<3)S.go('foods');else S.go('today');return}if(a==='open-disclaimer'){S.go('disclaimer');return}if(a==='hide-ribbon'){S.state.ribbonHidden=true;Store.save(S.state);document.getElementById('ribbon').hidden=true;return}if(a==='open-day-plan'){S.go('plan');return}if(a==='open-diary'){S.go('diary');return}if(a==='open-symptoms'){S.go('symptoms');return}if(a==='regen-plan'){renderPlan(true);return}if(a==='open-manual'){openManual();return}if(a==='rec-voice'){toggleRecorder();return}if(a==='speech'){e.preventDefault();const ta=t.closest('label')?.querySelector('textarea')||document.querySelector('textarea:focus')||document.querySelector('textarea');Voice.speechStart(ta);return}if(a==='export'){exportData();return}if(a==='reset'){if(confirm('Стереть все локальные данные?')){Store.clear();location.reload()};return}if(a==='log-from-rings'){quickLog();return}if(a==='data-period')return;const screen=t.dataset.screenToggle;if(screen){if(screen==='more'){S.go('settings');return}if(screen==='symptoms'){S.go('symptoms');return}S.go(screen);return}const phase=t.dataset.phase;if(phase){S.state.phase=phase;S.state.targetToday=calcTargets(S.state.profile,phase);Store.save(S.state);document.querySelectorAll('[data-phase]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.phase===phase)));refreshAll();return}const period=t.dataset.period;if(period){document.querySelectorAll('[data-period]').forEach(x=>x.classList.toggle('is-active',x===t));renderAnalytics(period);return}}
-function onInput(e){const t=e.target;if(t.id==='food-search'){const q=t.value.toLowerCase().trim();if(!q){document.getElementById('food-search-results').hidden=true;return}const res=allFoods(S.state).filter(f=>f.name.toLowerCase().includes(q)).slice(0,10);const box=document.getElementById('food-search-results');box.hidden=false;box.innerHTML=res.map(f=>`<div class="result-list__item"><span>${esc(f.name)}<br><small>${f.kcal} ккал · Б${f.protein_g} Ж${f.fat_g} У${f.carb_g} · кл.${f.fiber_g}г</small></span><button class="btn btn--mini" data-allow="${esc(f.name)}" type="button">разрешить</button><button class="btn btn--mini btn--danger" data-forbid="${esc(f.name)}" type="button">запретить</button></div>`).join('')}if(t.name==='severity'){document.getElementById('sev-out').textContent=t.value}if(t.name&&t.name.startsWith('share')){const vals=['shareBreakfast','shareLunch','shareSnack','shareDinner'].map(n=>+document.querySelector(`[name="${n}"]`).value||0);document.getElementById('share-sum').textContent=`Σ ${vals.reduce((a,b)=>a+b,0)}% (100±2)`}}}
-function onSubmit(e){e.preventDefault();const f=e.target;if(f.id==='form-profile')return saveProfile(f);if(f.id==='form-health')return saveHealth(f);if(f.id==='form-symptom')return saveSymptom(f);if(f.id==='form-settings')return saveSettings(f)}
-function bindAll(){document.body.addEventListener('click',e=>{const t=e.target.closest('[data-allow],[data-forbid],[data-rm],[data-unforbid],[data-tol],[data-replace],[data-log]');if(!t)return;e.preventDefault();const n=t.dataset.allow||t.dataset.forbid||t.dataset.rm||t.dataset.unforbid||t.dataset.tol;if(t.dataset.allow)addAllowed(n);else if(t.dataset.forbid)addForbidden(n);else if(t.dataset.rm)removeAllowed(n);else if(t.dataset.unforbid)removeForbidden(n);else if(t.dataset.tol)cycleTolerance(n);if(t.dataset.replace){const slot=+t.dataset.slot;const oldName=t.dataset.replace;const candidates=allFoods(S.state).filter(f=>(S.state.foods||[]).includes(f.name)).filter(f=>f.name!==oldName).filter(f=>!(S.state.tolerances[f.name]==='not_suits'||S.state.tolerances[f.name]==='causes_symptoms'));if(!candidates.length){toast('Нет замен в списке разрешённых.');return}const rep=candidates[Math.floor(Math.random()*candidates.length)];const plan=S.state.plan;const s=plan.slots.find(x=>x.slot_index===slot);const item=s.recommendations.find(r=>r.foodItemId===oldName);if(item){item.foodItemId=rep.name;const g=item.grams_raw;item.kcal=Math.round(rep.kcal*g/100);item.protein_g=round1(rep.protein_g*g/100);item.fat_g=round1(rep.fat_g*g/100);item.carb_g=round1(rep.carb_g*g/100);item.fiber_g=round1(rep.fiber_g*g/100)}Store.save(S.state);renderPlan();toast(`Заменено на «${rep.name}»`)}if(t.dataset.log)logMeal(t.dataset.slot,t.dataset.log,+t.dataset.grams)});document.getElementById('import-input').addEventListener('change',onImport);document.getElementById('upload-input').addEventListener('change',onUpload);document.querySelectorAll('.dock__btn').forEach(b=>b.addEventListener('click',()=>{const map={today:'today',plan:'plan',foods:'foods',diary:'diary',more:'settings'};S.go(map[b.dataset.screenToggle])}))}
-function saveProfile(form){const fd=new FormData(form);const p={sex:fd.get('sex'),age:+fd.get('age'),heightCm:+fd.get('heightCm'),weightKg:+fd.get('weightKg'),bodyFatPct:fd.get('bodyFatPct')?+fd.get('bodyFatPct'):null,measuredBmrKcal:fd.get('measuredBmrKcal')?+fd.get('measuredBmrKcal'):null,activityLevel:fd.get('activityLevel'),goal:fd.get('goal'),mealsPerDay:+fd.get('mealsPerDay')||4};if(p.age<1||p.age>120)return toast('Возраст: 1–120');if(p.heightCm<50||p.heightCm>250)return toast('Рост: 50–250 см');if(p.weightKg<20||p.weightKg>400)return toast('Вес: 20–400 кг');S.state.profile=p;S.state.targetToday=calcTargets(p,S.state.phase);Store.save(S.state);toast('Анкета сохранена');S.go('health')}
-function saveHealth(form){const fd=new FormData(form);S.state.health={phase:fd.get('phase'),diagnoses:(fd.get('diagnoses')||'').toString().split(',').map(s=>s.trim()).filter(Boolean),allergies:(fd.get('allergies')||'').toString().split(',').map(s=>s.trim()).filter(Boolean),intolerances:(fd.get('intolerances')||'').toString().split(',').map(s=>s.trim()).filter(Boolean),medications:fd.get('medications')||'',free:fd.get('free')||''};S.state.phase=S.state.health.phase;Store.save(S.state);toast('Здоровье сохранено');refreshAll();S.go('foods')}
-function saveSymptom(form){const fd=new FormData(form);const types=[...form.querySelectorAll('[name=symptomType]:checked')].map(i=>i.value);if(types.length===0)return toast('Выберите симптом');const e={id:'sym-'+Date.now(),datetime:fd.get('datetime')||new Date().toISOString().slice(0,16),symptom_type:types[0],all_types:types,severity:+fd.get('severity'),phase:S.state.phase,related_foods:fd.get('relatedFood')||'',note:fd.get('note')||'',red_flag:false};e.red_flag=isRedFlag(e);S.state.symptoms.unshift(e);Store.save(S.state);toast(e.red_flag?'🚨 Записано. Похоже на red-flag — прочитайте рекомендацию.':'Записано');renderSymptoms();form.reset();form.querySelector('[name=severity]').value=3;document.getElementById('sev-out').textContent='3'}
-function saveSettings(form){const fd=new FormData(form);const shares={breakfast:+fd.get('shareBreakfast'),lunch:+fd.get('shareLunch'),snack:+fd.get('shareSnack'),dinner:+fd.get('shareDinner')};const sum=Object.values(shares).reduce((a,b)=>a+b,0);if(Math.abs(sum-100)>4)return toast(`Сумма долей = ${sum}% (должна быть 100±2)`);S.state.settings={mealsPerDay:+fd.get('mealsPerDay')||4,shares,notif:{meals:!!form.querySelector('[name=notifMeals]')?.checked,symptoms:!!form.querySelector('[name=notifSymptoms]')?.checked,diary:!!form.querySelector('[name=notifDiary]')?.checked}};Store.save(S.state);toast('Сохранено');requestNotificationPermission()}
-function renderFoods(){document.getElementById('allowed-list').innerHTML=(S.state.foods||[]).map(n=>`<li>${esc(n)}<button data-tol="${esc(n)}" title="Переносимость">⚖</button><button data-rm="${esc(n)}" title="Удалить">×</button></li>`).join('')||'<li class="muted">Пока пусто.</li>';document.getElementById('forbidden-list').innerHTML=(S.state.forbidden||[]).map(n=>`<li>${esc(n)}<button data-unforbid="${esc(n)}" title="Вернуть">↩</button></li>`).join('')||'<li class="muted">Список пуст.</li>'}
-function addAllowed(name){S.state.forbidden=(S.state.forbidden||[]).filter(n=>n!==name);if(!S.state.foods.includes(name))S.state.foods.push(name);Store.save(S.state);renderFoods();refreshAll();toast(`«${name}» добавлен`)}
-function addForbidden(name){S.state.foods=(S.state.foods||[]).filter(n=>n!==name);S.state.forbidden=S.state.forbidden||[];if(!S.state.forbidden.includes(name))S.state.forbidden.push(name);Store.save(S.state);renderFoods();refreshAll();toast(`«${name}» запрещён`)}
-function removeAllowed(name){S.state.foods=S.state.foods.filter(n=>n!==name);Store.save(S.state);renderFoods()}
-function removeForbidden(name){S.state.forbidden=S.state.forbidden.filter(n=>n!==name);Store.save(S.state);renderFoods()}
-function cycleTolerance(name){const cycle=['suits','not_suits','causes_symptoms','unknown'];const cur=S.state.tolerances[name]||'unknown';const next=cycle[(cycle.indexOf(cur)+1)%cycle.length];S.state.tolerances[name]=next;Store.save(S.state);renderFoods();toast(`«${name}»: ${tolLabel(next)}`)}
-function tolLabel(s){return{suits:'👍 подходит',not_suits:'👎 не подходит',causes_symptoms:'⚠ вызывает симптомы',unknown:'неизвестно'}[s]||s}
-function openManual(){const host=document.createElement('div');host.className='manual-form';host.id='manual-host';host.innerHTML=`<h4>Свой продукт (на 100 г сырого)</h4><form id="form-manual" class="form">
-<input name="name" placeholder="Название" required>
-<div class="grid grid--2">
-<input name="kcal" type="number" placeholder="ккал" required>
-<input name="protein_g" type="number" placeholder="Б г" required>
-<input name="fat_g" type="number" placeholder="Ж г" required>
-<input name="carb_g" type="number" placeholder="У г" required>
-<input name="fiber_g" type="number" placeholder="клетч. г">
-<input name="sugar_g" type="number" placeholder="сахар г">
-<input name="sodium_mg" type="number" placeholder="натрий мг">
-<select name="category"><option>protein</option><option>carb</option><option>veg</option><option>fruit</option><option>dairy</option><option>fat</option><option>nuts</option><option>drink</option></select>
-</div>
-<button class="btn btn--primary" type="submit">Сохранить</button></form>`;document.getElementById('foods').appendChild(host);document.getElementById('form-manual').addEventListener('submit',ev=>{ev.preventDefault();const fd=new FormData(ev.target);const f={name:fd.get('name'),category:fd.get('category'),kcal:+fd.get('kcal')||0,protein_g:+fd.get('protein_g')||0,fat_g:+fd.get('fat_g')||0,carb_g:+fd.get('carb_g')||0,fiber_g:+fd.get('fiber_g')||0,sugar_g:+fd.get('sugar_g')||0,sodium_mg:+fd.get('sodium_mg')||0,fiber_type:'none',irritants:[],risk:'medium',is_raw_reference:true};S.state.manualFoods.push(f);S.state.foods.push(f.name);Store.save(S.state);renderFoods();refreshAll();toast(`«${f.name}» добавлен`);host.remove()})}
-function dayTotals(){const today=new Date().toISOString().slice(0,10);const entries=S.state.meals.filter(m=>m.date===today);const t={kcal:0,protein_g:0,fat_g:0,carb_g:0,fiber_g:0,water:0};for(const e of entries){const f=findFood(S.state,e.foodItemId);if(!f)continue;const g=e.grams_raw;t.kcal+=f.kcal*g/100;t.protein_g+=f.protein_g*g/100;t.fat_g+=f.fat_g*g/100;t.carb_g+=f.carb_g*g/100;t.fiber_g+=f.fiber_g*g/100;if(f.category==='drink'&&f.name==='Вода')t.water+=g}for(const k in t)t[k]=Math.round(t[k]*10)/10;return t}
-function ring(label,target,current){const pct=Math.min(current/target*100,100);const r=36,c=2*Math.PI*r;const dash=c*pct/100;const color=pct>110?'var(--terracotta)':pct>85?'var(--sage-deep)':'var(--sage-soft)';return`<div class="rings__ring"><svg width="84" height="84" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="var(--fog)" stroke-width="6"/><circle cx="42" cy="42" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${dash} ${c}" transform="rotate(-90 42 42)"/><text x="42" y="46" text-anchor="middle" font-family="Fraunces,serif" font-size="14" fill="var(--ink)">${Math.round(pct)}%</text></svg><strong>${Math.round(current)}/${Math.round(target)}</strong><small>${esc(label)}</small></div>`}
-function slotName(n){return{breakfast:'Завтрак',lunch:'Обед',snack:'Полдник',dinner:'Ужин'}[n]||n}
-function renderToday(){const root=document.getElementById('today-content');if(!root)return;const t=S.state.targetToday;const tt=dayTotals();const phaseSwitch=`<div class="phase-toggle phase-toggle--mini" style="margin:8px 0"><button class="phase-tab" data-phase="remission" aria-pressed="${S.state.phase==='remission'}">Ремиссия</button><button class="phase-tab phase-tab--warn" data-phase="flare" aria-pressed="${S.state.phase==='flare'}">Обострение</button></div>`;if(!t){root.innerHTML=`<p class="muted">Сначала заполните анкету.</p><button class="btn btn--primary" data-screen-toggle="profile">К анкете →</button>`;return}const plan=S.state.plan||recommendDay(S.state,t);S.state.plan=plan;Store.save(S.state);let mealHtml='';if(plan.error){mealHtml=`<p class="muted">${esc(plan.error)}</p><button class="btn btn--primary" data-screen-toggle="foods">Добавить продукты →</button>`}else{const h=new Date().getHours();const next=h<10?plan.slots[0]:h<14?plan.slots[1]:h<18?plan.slots[2]:plan.slots[3];mealHtml=`<article class="next-meal"><h3>Ближайший приём</h3><h4 style="margin:6px 0">${slotName(next.slot_name)} <small>≈ ${Math.round(t.kcal_target*next.target_kcal_share/100)} ккал</small></h4><ul>${next.recommendations.map(r=>`<li><span>${esc(r.foodItemId)}</span><small>${r.grams_raw} г сыр.</small></li>`).join('')}</ul>${next.warnings?.length?`<p class="warn">⚠ ${next.warnings.map(w=>w.message).join(' · ')}</p>`:''}</article>`}root.innerHTML=`${phaseSwitch}<div class="rings">${ring('ккал',t.kcal_target,tt.kcal)}${ring('белок, г',t.protein_g_target,tt.protein_g)}${ring('жиры, г',t.fat_g_target,tt.fat_g)}${ring('углеводы, г',t.carb_g_target,tt.carb_g)}${ring('клетчатка, г',t.fiber_g_target,tt.fiber_g)}${ring('вода, мл',t.water_ml_target,tt.water)}</div>${mealHtml}<div class="cta-row"><button class="btn btn--primary" data-screen-toggle="plan">Весь план на день →</button><button class="btn btn--ghost" data-screen-toggle="diary">Записать приём</button><button class="btn btn--ghost" data-screen-toggle="symptoms">Как самочувствие?</button></div><details class="why"><summary>Почему так</summary><p>Расчёт целей: Mifflin-St Jeor → Katch-McArdle → измеренный BMR. Подбор граммовок жадный по белку. Клетчатка, соль, сахар ограничиваются по фазе. Если цели недостижимы — мы скажем.</p></details>`}
-function renderPlan(force){const t=S.state.targetToday;const plan=force||!S.state.plan?recommendDay(S.state,t):S.state.plan;S.state.plan=plan;Store.save(S.state);const err=document.getElementById('plan-error');const root=document.getElementById('plan-root');if(!err||!root)return;if(plan.error){err.hidden=false;err.innerHTML=`⚠ ${esc(plan.error)}<br><small>Откройте «Продукты» и расширьте список.</small>`;root.innerHTML='';return}err.hidden=true;root.innerHTML=`<div class="rings" style="margin-bottom:18px">${ring('ккал',t.kcal_target,plan.totals.kcal)}${ring('белок',t.protein_g_target,plan.totals.protein_g)}${ring('жиры',t.fat_g_target,plan.totals.fat_g)}${ring('углеводы',t.carb_g_target,plan.totals.carb_g)}${ring('клетчатка',t.fiber_g_target,plan.totals.fiber_g)}</div>${plan.slots.map(s=>`<article class="meal-card"><h3>${slotName(s.slot_name)} <small>≈ ${Math.round(t.kcal_target*s.target_kcal_share/100)} ккал · ${s.target_kcal_share.toFixed(0)}%</small></h3><ul>${s.recommendations.map(r=>`<li><div><div class="name">${esc(r.foodItemId)}</div><div class="meta">${r.grams_raw} г сыр. · ${r.kcal} ккал · Б${r.protein_g} Ж${r.fat_g} У${r.carb_g} · кл.${r.fiber_g}</div></div><div class="actions"><button class="swap" data-replace="${esc(r.foodItemId)}" data-slot="${s.slot_index}">заменить</button><button class="swap" data-log="${esc(r.foodItemId)}" data-grams="${r.grams_raw}" data-slot="${s.slot_index}">съел(а) как план ✓</button></div></li>`).join('')}</ul>${s.warnings?.length?`<p class="warn">⚠ ${s.warnings.map(w=>w.message).join(' · ')}</p>`:''}</article>`).join('')}${plan.errors?.length?`<div class="alert">${plan.errors.map(esc).join('<br>')}</div>`:''}<p class="muted small" style="margin-top:14px">Метод BMR: <strong>${esc(plan.calc_method)}</strong></p>`}
-function logMeal(slotIndex,foodName,grams){const e={id:'me-'+Date.now(),date:new Date().toISOString().slice(0,10),slot_index:+slotIndex,foodItemId:foodName,grams_raw:grams,deviation:'as_planned',created_at:Date.now()};S.state.meals.push(e);Store.save(S.state);if(S.current==='today')renderToday();toast(`Записано: ${foodName} ${grams} г`)}
-function quickLog(){const f=prompt('Введите: Продукт, граммы (напр.: Куриная грудка, 120)');if(!f)return;const[name,grams]=f.split(',').map(x=>x.trim());if(!name||!grams){toast('Формат: Продукт, граммы');return}const m=allFoods(S.state).find(x=>x.name.toLowerCase()===name.toLowerCase());if(!m){toast('Продукт не найден в справочнике. Откройте «Продукты».');return}logMeal(1,m.name,+grams)}
-async function toggleRecorder(){const host=document.getElementById('recorder');if(host.hidden){const ok=await Voice.start();if(ok){host.hidden=false;document.getElementById('recorder-status').textContent='Идёт запись…';host.onclick=async()=>{const r=await Voice.stop();if(!r){host.hidden=true;return}const u=URL.createObjectURL(r.blob);document.getElementById('recorder-status').textContent=`Готово · ${r.duration} сек`;document.getElementById('recorder-playback').innerHTML=`<audio controls src="${u}"></audio><button class="btn btn--mini" id="kv">сохранить</button><button class="btn btn--mini btn--danger" id="dv">удалить</button>`;document.getElementById('kv').onclick=()=>{S.state.uploadedFiles.push({key:r.key,name:`voice-${r.duration}s.webm`,type:r.blob.type,size:r.blob.size,date:new Date().toISOString(),fromVoice:true});Store.save(S.state);renderUploads();host.hidden=true;toast('Голос сохранён')};document.getElementById('dv').onclick=()=>{host.hidden=true}}}}else{await Voice.stop();host.hidden=true}}
-async function onUpload(e){const f=e.target.files?.[0];if(!f)return;if(f.size>10*1024*1024)return toast('Файл больше 10 МБ');const k='file-'+Date.now();await putBlob(k,f);S.state.uploadedFiles.push({key:k,name:f.name,type:f.type,size:f.size,date:new Date().toISOString()});Store.save(S.state);renderUploads();toast(`«${f.name}» загружен`);e.target.value=''}
-async function renderUploads(){const host=document.getElementById('upload-list');if(!host)return;if(!S.state.uploadedFiles||!S.state.uploadedFiles.length){host.innerHTML='<p class="muted small">Пока ничего не загружено.</p>';return}host.innerHTML='';for(const item of S.state.uploadedFiles){const blob=await getBlob(item.key);if(!blob)continue;const url=URL.createObjectURL(blob);const node=document.createElement('div');node.className='upload-list__item';if(item.type.startsWith('image/'))node.innerHTML=`<img src="${url}" alt="">`;else if(item.type.startsWith('audio/'))node.innerHTML=`<audio controls src="${url}"></audio>`;else node.innerHTML=`<a href="${url}" target="_blank" rel="noopener">${esc(item.name)}</a>`;const btn=document.createElement('button');btn.textContent='×';btn.onclick=()=>{S.state.uploadedFiles=S.state.uploadedFiles.filter(x=>x.key!==item.key);Store.save(S.state);renderUploads()};node.appendChild(btn);host.appendChild(node)}}
-function renderSymptoms(){const banner=document.getElementById('red-flag-banner');if(!banner)return;const last=S.state.symptoms.find(s=>s.red_flag);if(last){banner.hidden=false;banner.innerHTML=`<strong>🚨 Запись, похожая на red-flag</strong><span>${symptomLabel(last.symptom_type)}, тяжесть ${last.severity}/10.</span><span>При крови, высокой температуре, сильной боли или признаках обезвоживания — обратитесь к врачу.</span>`}else banner.hidden=true;const host=document.getElementById('symptom-history');if(!host)return;host.innerHTML=S.state.symptoms.length?S.state.symptoms.slice(0,30).map(s=>`<li class="${s.red_flag?'is-flag':''}"><strong>${s.all_types.map(symptomLabel).join(', ')}</strong> · ${s.severity}/10<small>${new Date(s.datetime).toLocaleString('ru-RU')} · фаза «${s.phase}»</small>${s.note?`<small>📝 ${esc(s.note)}</small>`:''}${s.related_foods?`<small>🍽 ${esc(s.related_foods)}</small>`:''}</li>`).join(''):'<li class="muted">Записей нет. Хорошего самочувствия!</li>'}
-function symptomLabel(k){return{pain:'боль',bloating:'вздутие',stool:'стул изменён',nausea:'тошнота',blood:'кровь',fever:'температура',general:'общая слабость',other:'другое'}[k]||k}
-function renderAnalytics(period){const root=document.getElementById('analytics-root');if(!root)return;if(!S.state.meals.length&&!S.state.symptoms.length){root.innerHTML='<p class="muted">Недостаточно данных.</p>';return}if(period==='day'){const t=S.state.targetToday;const tt=dayTotals();const items=[['ккал',t.kcal_target,tt.kcal],['Б',t.protein_g_target,tt.protein_g],['Ж',t.fat_g_target,tt.fat_g],['У',t.carb_g_target,tt.carb_g],['кл.',t.fiber_g_target,tt.fiber_g]];root.innerHTML=`<div class="bar-chart">${items.map(([l,tg,v])=>`<div class="bar" style="height:${Math.min(v/tg*100,110)}%" data-label="${l}"></div>`).join('')}</div><h3 class="section-h">Подозрительные корреляции (гипотезы)</h3>${hypotheses()||'<p class="muted small">Недостаточно данных.</p>'}`}else{const days=lastNDays(7);const bars=days.map(d=>{const total=S.state.meals.filter(m=>m.date===d).reduce((a,e)=>{const f=findFood(S.state,e.foodItemId);return a+(f?f.kcal*e.grams_raw/100:0)},0);return{label:new Date(d).toLocaleDateString('ru-RU',{weekday:'short'}),val:total}});const tgt=S.state.targetToday?.kcal_target||2000;root.innerHTML=`<div class="bar-chart">${bars.map(b=>`<div class="bar" style="height:${Math.min(b.val/tgt*100,110)}%" data-label="${esc(b.label)}"></div>`).join('')}</div><h3 class="section-h">Симптомы за неделю</h3><ul class="log">${(S.state.symptoms.filter(s=>days.includes(s.datetime.slice(0,10)))).slice(0,10).map(s=>`<li class="${s.red_flag?'is-flag':''}">${s.all_types.map(symptomLabel).join(',')} · ${s.severity}/10<small>${new Date(s.datetime).toLocaleDateString('ru-RU')}</small></li>`).join('')||'<li class="muted small">Нет записей за неделю.</li>'}</ul>`}}
-function lastNDays(n){const o=[];const d=new Date();for(let i=n-1;i>=0;i--){const x=new Date(d);x.setDate(x.getDate()-i);o.push(x.toISOString().slice(0,10))}return o}
-function hypotheses(){const counts={};for(const s of S.state.symptoms){if(!s.red_flag&&s.severity<4)continue;const d=new Date(s.datetime);const from=new Date(d.getTime()-48*3600*1000).toISOString().slice(0,10);const to=d.toISOString().slice(0,10);for(const m of S.state.meals){if(m.date>=from&&m.date<=to)counts[m.foodItemId]=(counts[m.foodItemId]||0)+1}}const arr=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);if(!arr.length)return '';return'<ul class="log">'+arr.map(([n,c])=>`<li>«<strong>${esc(n)}</strong>» замечен рядом с выраженными симптомами ${c} раз. <small class="muted">Гипотеза, не доказано.</small></li>`).join('')+'</ul>'}
-function fillSettingsForm(){const f=document.getElementById('form-settings');if(!f)return;f.mealsPerDay.value=S.state.settings.mealsPerDay||4;f.shareBreakfast.value=S.state.settings.shares?.breakfast||27;f.shareLunch.value=S.state.settings.shares?.lunch||33;f.shareSnack.value=S.state.settings.shares?.snack||12;f.shareDinner.value=S.state.settings.shares?.dinner||28;f.notifMeals.checked=!!S.state.settings.notif?.meals;f.notifSymptoms.checked=!!S.state.settings.notif?.symptoms;f.notifDiary.checked=!!S.state.settings.notif?.diary}
-function exportData(){const out={meta:{app:'Навигатор питания',version:'1.0',exported_at:new Date().toISOString()},data:JSON.parse(JSON.stringify(S.state))};const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`navigator-pitaniya-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);toast('Файл сохранён')}
-async function onImport(e){const f=e.target.files?.[0];if(!f)return;try{const text=await f.text();const parsed=JSON.parse(text);if(!parsed?.data)throw new Error('Не похоже на бэкап');S.state={...defaultState(),...parsed.data};Store.save(S.state);toast('Импортировано');refreshAll()}catch(err){toast('Ошибка: '+err.message)}}
-let toastTimer;function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,3000)}
-function mountHeroArt(){const h=document.getElementById('hero-art');if(!h||h.dataset.mounted)return;h.dataset.mounted='1';h.innerHTML=`<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><radialGradient id="g" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#E0B97D" stop-opacity=".5"/><stop offset="100%" stop-color="#E0B97D" stop-opacity="0"/></radialGradient></defs><circle cx="110" cy="90" r="100" fill="url(#g)"/><g class="leaf"><path d="M40 130 Q80 70 180 130 Q120 100 40 130 Z" fill="#7C9885" opacity=".5"/></g><g class="bowl"><ellipse cx="110" cy="135" rx="62" ry="10" fill="#B7CDB0"/><path d="M48 130 Q110 220 172 130 Z" fill="#F1ECDF" stroke="#56615A" stroke-width="2"/><ellipse cx="110" cy="130" rx="62" ry="10" fill="#7C9885"/></g><g class="bowl__food"><circle cx="92" cy="128" r="9" fill="#C77752"/><circle cx="118" cy="128" r="8" fill="#E0B97D"/><circle cx="135" cy="128" r="7" fill="#7C9885"/><circle cx="78" cy="128" r="6" fill="#4F6B52"/><circle cx="105" cy="124" r="5" fill="#F8F5EE"/></g><g><circle cx="32" cy="60" r="6" fill="#B7CDB0" class="leaf"/><circle cx="190" cy="48" r="5" fill="#B7CDB0" class="leaf"/><circle cx="200" cy="110" r="7" fill="#7C9885" class="leaf"/></g></svg>`}
-function paintRibbon(){const r=document.getElementById('ribbon');r.hidden=!!S.state.ribbonHidden}
-async function requestNotificationPermission(){if(!('Notification' in window))return;if(Notification.permission==='default'){try{await Notification.requestPermission()}catch{}}}
-function setupNotifications(){if(!('Notification' in window)||Notification.permission!=='granted'||!S.state.settings.notif?.meals)return;setInterval(()=>{const h=new Date().getHours();const map={9:'завтрак',13:'обед',17:'полдник',20:'ужин'};const last=+(localStorage.getItem('np.lastNotif')||0);if(Date.now()-last<3600*1000)return;if(map[h]){new Notification('Навигатор питания',{body:`Время ${map[h]}.`});localStorage.setItem('np.lastNotif',Date.now())}},60*1000)}
-function registerSW(){if(!('serviceWorker' in navigator))return;navigator.serviceWorker.register('sw.js').catch(()=>{})}
-function refreshScreen(name){const stage=document.getElementById('stage');const html=SCREENS[name];if(html)stage.innerHTML=html;const done=[S.state.profile,S.state.health,(S.state.foods||[]).length>=3].filter(Boolean).length;document.documentElement.style.setProperty('--p',`${done/3*100}%`);if(name==='today')renderToday();if(name==='plan')renderPlan();if(name==='foods')renderFoods();if(name==='symptoms')renderSymptoms();if(name==='diary')renderUploads();if(name==='analytics')renderAnalytics('day');if(name==='settings')fillSettingsForm()}
-function refreshAll(){renderToday();renderFoods()}
-document.addEventListener('DOMContentLoaded',()=>{mountHeroArt();S.init();setupNotifications()});
+// Навигатор питания — основной модуль
+(() => {
+  'use strict';
+
+  // ========== Хранилище ==========
+  const STORE_KEY = 'np.v1';
+  const Store = {
+    load() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        return raw ? JSON.parse(raw) : defaultState();
+      } catch (e) {
+        return defaultState();
+      }
+    },
+    save(s) {
+      localStorage.setItem(STORE_KEY, JSON.stringify(s));
+    }
+  };
+
+  function defaultState() {
+    return {
+      profile: null,
+      health: null,
+      phase: 'remission',
+      foods: [],
+      forbidden: [],
+      tolerances: {},
+      targetToday: null,
+      plan: null,
+      meals: [],
+      symptoms: [],
+      settings: {
+        mealsPerDay: 4,
+        shares: { breakfast: 27, lunch: 33, snack: 12, dinner: 28 },
+        notif: { meals: true, symptoms: true, diary: true }
+      },
+      ribbonHidden: false,
+      onboardingDone: false
+    };
+  }
+
+  // ========== Утилиты ==========
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+
+  // ========== Калькулятор целей ==========
+  const ACTIVITY_FACTOR = {
+    sedentary: 1.2, light: 1.375, moderate: 1.55, high: 1.725, vhigh: 1.9
+  };
+  const GOAL_DELTA = { maintain: 0, lose: -0.1, gain: 0.1 };
+
+  function calcBMR(p) {
+    if (p.measuredBmrKcal) return { bmr: p.measuredBmrKcal, method: 'измеренный' };
+    if (p.bodyFatPct) {
+      const lbm = p.weightKg * (1 - p.bodyFatPct / 100);
+      return { bmr: 370 + 21.6 * lbm, method: 'Katch-McArdle' };
+    }
+    const s = p.sex === 'm' ? 5 : -161;
+    return {
+      bmr: 10 * p.weightKg + 6.25 * p.heightCm + s - 5 * p.age,
+      method: 'Mifflin-St Jeor'
+    };
+  }
+
+  function calcTargets(profile, phase) {
+    if (!profile) return null;
+    const phaseNorm = phase || 'remission';
+    const { bmr, method } = calcBMR(profile);
+    const tdee = bmr * ACTIVITY_FACTOR[profile.activityLevel] * (1 + (GOAL_DELTA[profile.goal] || 0));
+    const proteinPerKg = phaseNorm === 'flare' ? 1.3 : 1.0;
+    const protein_g_target = Math.min(profile.weightKg * proteinPerKg, tdee * 0.35 / 4);
+    const fatPct = phaseNorm === 'flare' ? 0.25 : 0.30;
+    const fat_g_target = (tdee * fatPct) / 9;
+    const carbKcal = Math.max(tdee - protein_g_target * 4 - fat_g_target * 9, 0);
+    const carb_g_target = carbKcal / 4;
+    const fiber_g_target = phaseNorm === 'flare'
+      ? Math.min((tdee / 1000) * 8, 14)
+      : (tdee / 1000) * 14;
+    return {
+      kcal_target: Math.round(tdee),
+      protein_g_target: Math.round(protein_g_target),
+      fat_g_target: Math.round(fat_g_target),
+      carb_g_target: Math.round(carb_g_target),
+      fiber_g_target: Math.round(fiber_g_target),
+      water_ml_target: phaseNorm === 'flare' ? 2500 : 2000,
+      sodium_mg_limit: 2300,
+      sugar_g_limit: Math.round((tdee * 0.10) / 4),
+      calc_method: method
+    };
+  }
+
+  function allFoods() {
+    return window.SEED_FOODS || [];
+  }
+
+  function findFood(name) {
+    return allFoods().find((f) => f.name === name);
+  }
+
+  // ========== Планировщик дня ==========
+  function recommendDay(state, targets) {
+    if (!targets) return { error: 'Сначала заполните анкету.' };
+    if (!state.foods || state.foods.length < 3) return { error: 'Добавьте хотя бы 3 разрешённых продукта.' };
+    const tol = state.tolerances || {};
+    const forbidden = new Set(state.forbidden || []);
+    const candidates = state.foods
+      .map(findFood)
+      .filter(Boolean)
+      .filter((f) => !forbidden.has(f.name))
+      .filter((f) => tol[f.name] !== 'not_suits' && tol[f.name] !== 'causes_symptoms')
+      .filter((f) => {
+        if (state.phase !== 'flare') return true;
+        const ir = f.irritants || [];
+        if (ir.includes('insoluble_fiber')) return false;
+        if (ir.includes('fat') && f.fat_g >= 15) return false;
+        if (ir.includes('caffeine')) return false;
+        if (ir.includes('spicy')) return false;
+        return true;
+      });
+
+    if (candidates.length < 3) return { error: 'Подходящих продуктов мало. Расширьте список разрешённых.' };
+
+    const sorted = [...candidates].sort((a, b) => (b.protein_g * 4 - (b.irritants || []).includes('fat') * 2) - (a.protein_g * 4 - (a.irritants || []).includes('fat') * 2));
+
+    const picks = new Map();
+    let p = 0, f = 0, c = 0, fi = 0, k = 0;
+
+    function add(food, g) {
+      const cur = picks.get(food.name) || 0;
+      picks.set(food.name, cur + g);
+      p += food.protein_g * g / 100;
+      f += food.fat_g * g / 100;
+      c += food.carb_g * g / 100;
+      fi += food.fiber_g * g / 100;
+      k += food.kcal * g / 100;
+    }
+
+    for (const food of sorted) {
+      if (p >= targets.protein_g_target * 0.9) break;
+      if (picks.has(food.name)) continue;
+      const need = (targets.protein_g_target - p) * 100 / Math.max(food.protein_g, 1);
+      const g = Math.max(20, Math.min(200, Math.round(need / 5) * 5));
+      add(food, g);
+    }
+    const filler = [...candidates].sort((a, b) => (b.fat_g + b.carb_g) - (a.fat_g + a.carb_g));
+    for (const food of filler) {
+      if (f >= targets.fat_g_target * 0.9 && c >= targets.carb_g_target * 0.9) break;
+      if (picks.has(food.name)) continue;
+      add(food, 80);
+    }
+    if (fi < targets.fiber_g_target * 0.8) {
+      const sol = candidates.find((x) => x.fiber_type === 'soluble' && !picks.has(x.name));
+      if (sol) add(sol, 100);
+    }
+
+    const shares = state.settings.shares || { breakfast: 27, lunch: 33, snack: 12, dinner: 28 };
+    const sumShare = Object.values(shares).reduce((a, b) => a + b, 0) || 100;
+    const slots = ['breakfast', 'lunch', 'snack', 'dinner'].map((name, i) => ({
+      slot_index: i + 1, slot_name: name,
+      target_kcal_share: shares[name] / sumShare * 100,
+      recommendations: [], warnings: []
+    }));
+
+    const totalKcal = k || 1;
+    const items = [];
+    picks.forEach((grams, name) => {
+      const food = findFood(name);
+      if (food) items.push({ food, grams });
+    });
+    items.forEach((it) => {
+      const food = it.food;
+      const kcal = food.kcal * it.grams / 100;
+      const weight = kcal / totalKcal;
+      let acc = 0;
+      for (const s of slots) {
+        acc += s.target_kcal_share / 100;
+        if (weight <= acc || s === slots[slots.length - 1]) {
+          s.recommendations.push({
+            foodItemId: food.name, grams_raw: it.grams,
+            kcal: Math.round(kcal),
+            protein_g: +(food.protein_g * it.grams / 100).toFixed(1),
+            fat_g: +(food.fat_g * it.grams / 100).toFixed(1),
+            carb_g: +(food.carb_g * it.grams / 100).toFixed(1),
+            fiber_g: +(food.fiber_g * it.grams / 100).toFixed(1),
+            warnings: []
+          });
+          break;
+        }
+      }
+    });
+
+    slots.forEach((s, i) => {
+      s.recommendations.forEach((r) => {
+        const food = findFood(r.foodItemId);
+        if (!food) return;
+        const ir = food.irritants || [];
+        if (state.phase === 'flare') {
+          if (ir.includes('fat')) r.warnings.push({ severity: 'warning', message: 'Жирное в обострении — наблюдайте за реакцией.' });
+          if (ir.includes('insoluble_fiber')) r.warnings.push({ severity: 'warning', message: 'Грубая клетчатка — в обострении осторожно.' });
+          if (ir.includes('caffeine')) r.warnings.push({ severity: 'warning', message: 'Кофеин может раздражать ЖКТ.' });
+        }
+        if (i === 3 && ir.includes('fat')) r.warnings.push({ severity: 'info', message: 'Жирное на ночь — нежелательно.' });
+      });
+    });
+
+    const totals = {
+      kcal: Math.round(k), protein_g: Math.round(p),
+      fat_g: Math.round(f), carb_g: Math.round(c), fiber_g: Math.round(fi)
+    };
+    const errors = [];
+    if (k < targets.kcal_target * 0.7) errors.push('Калорий мало. Расширьте список продуктов.');
+    if (p < targets.protein_g_target * 0.7) errors.push('Белка мало. Добавьте белковых продуктов.');
+
+    return { slots, totals, errors, calc_method: targets.calc_method };
+  }
+
+  // ========== Состояние ==========
+  const S = {
+    state: Store.load(),
+    current: 'today',
+    init() {
+      this.state.targetToday = calcTargets(this.state.profile, this.state.phase);
+      if (!this.state.onboardingDone) {
+        showHero();
+      } else {
+        hideHero();
+        showApp();
+      }
+      paintRibbon();
+      bindEvents();
+      refreshAll();
+    },
+    go(name) {
+      this.current = name;
+      $$('.screen').forEach((el) => {
+        el.hidden = el.dataset.screen !== name;
+      });
+      $$('.dock__btn').forEach((b) => {
+        b.classList.toggle('is-active', b.dataset.screenToggle === name);
+      });
+      $$('[data-screen]').forEach((el) => {
+        const match = el.dataset.screen === name;
+        if (el.tagName === 'SECTION') el.hidden = !match;
+      });
+      refreshScreen(name);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // ========== UI ==========
+  function showHero() {
+    $('.hero').hidden = false;
+    $('.shell').hidden = true;
+    $('.stage').hidden = true;
+    $('.dock').hidden = true;
+  }
+  function hideHero() {
+    $('.hero').hidden = true;
+    $('.shell').hidden = false;
+    $('.stage').hidden = false;
+    $('.dock').hidden = false;
+  }
+  function showApp() { hideHero(); }
+
+  // ========== Обработчики ==========
+  function bindEvents() {
+    document.body.addEventListener('click', onClick);
+    document.body.addEventListener('submit', onSubmit);
+    document.body.addEventListener('input', onInput);
+    document.body.addEventListener('change', onChange);
+  }
+
+  function onClick(e) {
+    const t = e.target.closest('[data-action], [data-screen-toggle], [data-phase], [data-tab], [data-allow], [data-forbid], [data-rm], [data-tol], [data-replace], [data-log]');
+    if (!t) return;
+    const a = t.dataset.action;
+
+    if (a === 'start') {
+      S.state.onboardingDone = true;
+      Store.save(S.state);
+      hideHero();
+      showApp();
+      if (!S.state.profile) S.go('profile');
+      else if (!S.state.health) S.go('health');
+      else if ((S.state.foods || []).length < 3) S.go('foods');
+      else S.go('today');
+      return;
+    }
+    if (a === 'open-disclaimer') { S.go('disclaimer'); return; }
+    if (a === 'hide-ribbon') {
+      S.state.ribbonHidden = true;
+      Store.save(S.state);
+      $('#ribbon').hidden = true;
+      return;
+    }
+    if (a === 'open-day-plan') { S.go('plan'); return; }
+    if (a === 'open-diary') { S.go('diary'); return; }
+    if (a === 'open-symptoms') { S.go('symptoms'); return; }
+    if (a === 'regen-plan') { S.state.plan = recommendDay(S.state, S.state.targetToday); Store.save(S.state); renderPlan(); return; }
+    if (a === 'phase') {
+      const phase = t.dataset.phase;
+      S.state.phase = phase;
+      S.state.targetToday = calcTargets(S.state.profile, phase);
+      Store.save(S.state);
+      $$('[data-phase]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.phase === phase)));
+      refreshToday();
+      return;
+    }
+    if (a === 'speech') {
+      e.preventDefault();
+      const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Rec) { toast('Голосовой ввод не поддерживается. Пишите текстом.'); return; }
+      const t2 = t.closest('label');
+      const ta = (t2 && t2.querySelector('textarea')) || document.querySelector('textarea:focus') || document.querySelector('textarea');
+      if (!ta) return;
+      const r = new Rec();
+      r.lang = 'ru-RU'; r.interimResults = true;
+      r.onresult = (ev) => {
+        let txt = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) txt += ev.results[i][0].transcript;
+        ta.value = (ta.value ? ta.value + ' ' : '') + txt;
+      };
+      r.onerror = (ev) => toast('Не удалось распознать: ' + ev.error);
+      r.start();
+      toast('Слушаю… говорите');
+      return;
+    }
+    if (a === 'export') {
+      const out = { meta: { app: 'Навигатор питания', exported_at: new Date().toISOString() }, data: S.state };
+      const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'navigator-pitaniya-' + new Date().toISOString().slice(0, 10) + '.json';
+      link.click();
+      URL.revokeObjectURL(url);
+      toast('Файл сохранён');
+      return;
+    }
+    if (a === 'reset') {
+      if (confirm('Стереть все локальные данные?')) { localStorage.removeItem(STORE_KEY); location.reload(); }
+      return;
+    }
+
+    const screen = t.dataset.screenToggle;
+    if (screen) {
+      const map = { today: 'today', plan: 'plan', foods: 'foods', diary: 'diary', more: 'settings', symptoms: 'symptoms', settings: 'settings' };
+      S.go(map[screen] || screen);
+      return;
+    }
+
+    const phase = t.dataset.phase;
+    if (phase) {
+      S.state.phase = phase;
+      S.state.targetToday = calcTargets(S.state.profile, phase);
+      Store.save(S.state);
+      $$('[data-phase]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.phase === phase)));
+      refreshToday();
+      return;
+    }
+
+    const tab = t.dataset.tab;
+    if (tab) {
+      $$('[data-tab]').forEach((x) => x.classList.toggle('is-active', x === t));
+      refreshAnalytics(tab);
+      return;
+    }
+
+    if (t.dataset.allow) addAllowed(t.dataset.allow);
+    else if (t.dataset.forbid) addForbidden(t.dataset.forbid);
+    else if (t.dataset.rm) removeAllowed(t.dataset.rm);
+    else if (t.dataset.tol) cycleTolerance(t.dataset.tol);
+    else if (t.dataset.replace) doReplace(+t.dataset.slot, t.dataset.replace);
+    else if (t.dataset.log) logMeal(+t.dataset.slot, t.dataset.log, +t.dataset.grams);
+  }
+
+  function onInput(e) {
+    const t = e.target;
+    if (t.id === 'food-search') {
+      const q = t.value.toLowerCase().trim();
+      const box = $('#food-search-results');
+      if (!q) { box.hidden = true; return; }
+      const res = allFoods().filter((f) => f.name.toLowerCase().includes(q)).slice(0, 8);
+      box.hidden = false;
+      box.innerHTML = res.map((f) => (
+        '<div class="search-results__item">' +
+          '<div><strong>' + esc(f.name) + '</strong>' +
+            '<small>' + f.kcal + ' ккал · Б' + f.protein_g + ' Ж' + f.fat_g + ' У' + f.carb_g + ' · клетч. ' + f.fiber_g + ' г</small></div>' +
+          '<div style="display:flex;gap:6px">' +
+            '<button class="btn btn--ghost btn--small" data-allow="' + esc(f.name) + '">разрешить</button>' +
+            '<button class="btn btn--small" data-forbid="' + esc(f.name) + '" style="border-color:rgba(194,91,58,.3);color:#C25B3A">исключить</button>' +
+          '</div>' +
+        '</div>'
+      )).join('');
+    }
+  }
+
+  function onChange(e) {
+    if (e.target.id === 'import-input') {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          if (!parsed.data) throw new Error('Не похоже на бэкап');
+          S.state = Object.assign(defaultState(), parsed.data);
+          Store.save(S.state);
+          toast('Импортировано');
+          refreshAll();
+          S.go('today');
+        } catch (err) { toast('Ошибка: ' + err.message); }
+      };
+      reader.readAsText(f);
+    }
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    const f = e.target;
+    if (f.id === 'form-profile') return saveProfile(f);
+    if (f.id === 'form-health') return saveHealth(f);
+    if (f.id === 'form-symptom') return saveSymptom(f);
+    if (f.id === 'form-settings') return saveSettings(f);
+  }
+
+  // ========== Сохранение форм ==========
+  function saveProfile(form) {
+    const fd = new FormData(form);
+    const p = {
+      sex: fd.get('sex'),
+      age: +fd.get('age'),
+      heightCm: +fd.get('heightCm'),
+      weightKg: +fd.get('weightKg'),
+      bodyFatPct: fd.get('bodyFatPct') ? +fd.get('bodyFatPct') : null,
+      measuredBmrKcal: fd.get('measuredBmrKcal') ? +fd.get('measuredBmrKcal') : null,
+      activityLevel: fd.get('activityLevel'),
+      goal: fd.get('goal'),
+      mealsPerDay: +fd.get('mealsPerDay') || 4
+    };
+    if (p.age < 1 || p.age > 120) return toast('Возраст: 1–120');
+    if (p.heightCm < 50 || p.heightCm > 250) return toast('Рост: 50–250 см');
+    if (p.weightKg < 20 || p.weightKg > 400) return toast('Вес: 20–400 кг');
+    S.state.profile = p;
+    S.state.targetToday = calcTargets(p, S.state.phase);
+    Store.save(S.state);
+    toast('Анкета сохранена');
+    S.go('health');
+  }
+
+  function saveHealth(form) {
+    const fd = new FormData(form);
+    S.state.health = {
+      phase: fd.get('phase'),
+      diagnoses: (fd.get('diagnoses') || '').toString().split(',').map((s) => s.trim()).filter(Boolean),
+      allergies: (fd.get('allergies') || '').toString().split(',').map((s) => s.trim()).filter(Boolean),
+      intolerances: (fd.get('intolerances') || '').toString().split(',').map((s) => s.trim()).filter(Boolean),
+      free: fd.get('free') || ''
+    };
+    S.state.phase = S.state.health.phase;
+    S.state.targetToday = calcTargets(S.state.profile, S.state.phase);
+    Store.save(S.state);
+    toast('Здоровье сохранено');
+    refreshToday();
+    S.go('foods');
+  }
+
+  function saveSymptom(form) {
+    const fd = new FormData(form);
+    const types = $$('[name=symptomType]:checked', form).map((i) => i.value);
+    if (types.length === 0) return toast('Выберите симптом');
+    const severity = +fd.get('severity');
+    const isRed = types.includes('blood') || types.includes('fever') || severity >= 8 || (types.includes('pain') && severity >= 6);
+    const entry = {
+      id: 'sym-' + Date.now(),
+      datetime: fd.get('datetime') || new Date().toISOString().slice(0, 16),
+      all_types: types,
+      severity: severity,
+      phase: S.state.phase,
+      related_foods: fd.get('relatedFood') || '',
+      note: fd.get('note') || '',
+      red_flag: isRed
+    };
+    S.state.symptoms.unshift(entry);
+    Store.save(S.state);
+    toast(isRed ? '🚨 Записано. Похоже на red-flag — обратитесь к врачу.' : 'Записано');
+    renderSymptoms();
+    form.reset();
+  }
+
+  function saveSettings(form) {
+    const fd = new FormData(form);
+    const shares = {
+      breakfast: +fd.get('shareBreakfast'),
+      lunch: +fd.get('shareLunch'),
+      snack: +fd.get('shareSnack'),
+      dinner: +fd.get('shareDinner')
+    };
+    const sum = shares.breakfast + shares.lunch + shares.snack + shares.dinner;
+    if (Math.abs(sum - 100) > 4) return toast('Σ ' + sum + '% (должно быть 100±2)');
+    S.state.settings.mealsPerDay = +fd.get('mealsPerDay') || 4;
+    S.state.settings.shares = shares;
+    Store.save(S.state);
+    toast('Сохранено');
+  }
+
+  // ========== Продукты ==========
+  function addAllowed(name) {
+    S.state.forbidden = (S.state.forbidden || []).filter((n) => n !== name);
+    if (!S.state.foods.includes(name)) S.state.foods.push(name);
+    Store.save(S.state);
+    renderFoods();
+    refreshToday();
+    toast('«' + name + '» в разрешённых');
+  }
+  function addForbidden(name) {
+    S.state.foods = (S.state.foods || []).filter((n) => n !== name);
+    S.state.forbidden = S.state.forbidden || [];
+    if (!S.state.forbidden.includes(name)) S.state.forbidden.push(name);
+    Store.save(S.state);
+    renderFoods();
+    refreshToday();
+    toast('«' + name + '» исключён');
+  }
+  function removeAllowed(name) {
+    S.state.foods = S.state.foods.filter((n) => n !== name);
+    Store.save(S.state);
+    renderFoods();
+  }
+  function cycleTolerance(name) {
+    const cycle = ['unknown', 'suits', 'not_suits', 'causes_symptoms'];
+    const cur = S.state.tolerances[name] || 'unknown';
+    const next = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
+    S.state.tolerances[name] = next;
+    Store.save(S.state);
+    renderFoods();
+    toast('«' + name + '»: ' + { suits: '👍', not_suits: '👎', causes_symptoms: '⚠️', unknown: '?' }[next]);
+  }
+
+  // ========== План ==========
+  function logMeal(slotIndex, foodName, grams) {
+    const entry = {
+      id: 'me-' + Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      slot_index: slotIndex,
+      food_item: foodName,
+      grams_raw: grams,
+      deviation: 'as_planned'
+    };
+    S.state.meals.push(entry);
+    Store.save(S.state);
+    refreshToday();
+    toast('Записано: ' + foodName + ' ' + grams + ' г');
+  }
+
+  function doReplace(slotIndex, oldName) {
+    const state = S.state;
+    const candidates = state.foods
+      .map(findFood)
+      .filter((f) => f && f.name !== oldName)
+      .filter((f) => state.tolerances[f.name] !== 'not_suits' && state.tolerances[f.name] !== 'causes_symptoms');
+    if (!candidates.length) return toast('Нет замен.');
+    const next = candidates[Math.floor(Math.random() * candidates.length)];
+    const plan = state.plan;
+    if (!plan) return;
+    const slot = plan.slots.find((s) => s.slot_index === slotIndex);
+    if (!slot) return;
+    const item = slot.recommendations.find((r) => r.foodItemId === oldName);
+    if (!item) return;
+    const g = item.grams_raw;
+    item.foodItemId = next.name;
+    item.kcal = Math.round(next.kcal * g / 100);
+    item.protein_g = +(next.protein_g * g / 100).toFixed(1);
+    item.fat_g = +(next.fat_g * g / 100).toFixed(1);
+    item.carb_g = +(next.carb_g * g / 100).toFixed(1);
+    item.fiber_g = +(next.fiber_g * g / 100).toFixed(1);
+    item.warnings = [];
+    Store.save(state);
+    renderPlan();
+    toast('Заменено: ' + next.name);
+  }
+
+  // ========== Рендер экранов ==========
+  function ringHTML(label, target, current, unit) {
+    const pct = Math.min(current / target * 100, 100);
+    const r = 36, c = 2 * Math.PI * r, dash = c * pct / 100;
+    const color = pct > 110 ? '#C25B3A' : pct > 85 ? '#3F5E48' : '#6F8E78';
+    return (
+      '<div class="ring">' +
+        '<svg viewBox="0 0 88 88"><circle cx="44" cy="44" r="' + r + '" fill="none" stroke="#E8E2D5" stroke-width="6"/>' +
+        '<circle cx="44" cy="44" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-linecap="round" ' +
+        'stroke-dasharray="' + dash + ' ' + c + '" transform="rotate(-90 44 44)"/>' +
+        '<text x="44" y="48" text-anchor="middle" font-family="Fraunces,serif" font-size="13" fill="#1F2421">' + Math.round(pct) + '%</text></svg>' +
+        '<div class="ring__num">' + Math.round(current) + '<small>/ ' + Math.round(target) + ' ' + (unit || '') + '</small></div>' +
+        '<div class="ring__label">' + esc(label) + '</div>' +
+      '</div>'
+    );
+  }
+
+  function dayTotals() {
+    const today = new Date().toISOString().slice(0, 10);
+    const entries = S.state.meals.filter((m) => m.date === today);
+    const t = { kcal: 0, protein_g: 0, fat_g: 0, carb_g: 0, fiber_g: 0, water: 0 };
+    entries.forEach((e) => {
+      const f = findFood(e.food_item);
+      if (!f) return;
+      t.kcal += f.kcal * e.grams_raw / 100;
+      t.protein_g += f.protein_g * e.grams_raw / 100;
+      t.fat_g += f.fat_g * e.grams_raw / 100;
+      t.carb_g += f.carb_g * e.grams_raw / 100;
+      t.fiber_g += f.fiber_g * e.grams_raw / 100;
+      if (f.name === 'Вода') t.water += e.grams_raw;
+    });
+    return t;
+  }
+
+  function slotName(name) {
+    return { breakfast: 'Завтрак', lunch: 'Обед', snack: 'Полдник', dinner: 'Ужин' }[name] || name;
+  }
+
+  function renderToday() {
+    const stage = $('#stage');
+    if (!stage) return;
+    const t = S.state.targetToday;
+    if (!t) {
+      stage.innerHTML = '<div class="section"><div class="card"><h2><em>1.</em> Начнём с анкеты</h2><p class="muted">Это займёт меньше минуты. Без регистрации и серверов.</p><button class="btn btn--primary" data-screen-toggle="profile">Заполнить анкету →</button></div></div>';
+      return;
+    }
+    const tt = dayTotals();
+    const plan = S.state.plan || recommendDay(S.state, t);
+    S.state.plan = plan;
+    Store.save(S.state);
+
+    const phaseSwitch = '<div style="display:flex;justify-content:center;margin-bottom:24px"><div class="tabs">' +
+      '<button class="tab ' + (S.state.phase === 'remission' ? 'is-active' : '') + '" data-phase="remission">ремиссия</button>' +
+      '<button class="tab ' + (S.state.phase === 'flare' ? 'is-active' : '') + '" data-phase="flare">обострение</button>' +
+      '</div></div>';
+
+    let mealBlock = '';
+    if (plan.error) {
+      mealBlock = '<div class="alert">' + esc(plan.error) + '<br><small>→ Откройте раздел «Продукты» и добавьте ещё.</small></div>' +
+        '<div style="text-align:center;margin-top:16px"><button class="btn btn--primary" data-screen-toggle="foods">Добавить продукты →</button></div>';
+    } else {
+      const h = new Date().getHours();
+      const next = h < 10 ? plan.slots[0] : h < 14 ? plan.slots[1] : h < 18 ? plan.slots[2] : plan.slots[3];
+      mealBlock = '<div class="next-meal">' +
+        '<h3 class="serif">Ближайший приём</h3>' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin:8px 0 16px"><span class="num" style="font-size:24px">' + slotName(next.slot_name) + '</span><small>≈ ' + Math.round(t.kcal_target * next.target_kcal_share / 100) + ' ккал</small></div>' +
+        '<ul>' + next.recommendations.map((r) =>
+          '<li><span class="serif">' + esc(r.foodItemId) + '</span><small class="mono">' + r.grams_raw + ' г сыр.</small></li>'
+        ).join('') + '</ul></div>';
+    }
+
+    stage.innerHTML =
+      phaseSwitch +
+      '<div class="counters">' +
+        ringHTML('ккал', t.kcal_target, tt.kcal, 'ккал') +
+        ringHTML('белок', t.protein_g_target, tt.protein_g, 'г') +
+        ringHTML('жиры', t.fat_g_target, tt.fat_g, 'г') +
+        ringHTML('углеводы', t.carb_g_target, tt.carb_g, 'г') +
+        ringHTML('клетчатка', t.fiber_g_target, tt.fiber_g, 'г') +
+        ringHTML('вода', t.water_ml_target, tt.water, 'мл') +
+      '</div>' +
+      mealBlock +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:32px">' +
+        '<button class="btn btn--primary" data-screen-toggle="plan">Весь план на день →</button>' +
+        '<button class="btn btn--ghost" data-screen-toggle="diary">Записать приём</button>' +
+        '<button class="btn btn--ghost" data-screen-toggle="symptoms">Самочувствие</button>' +
+      '</div>' +
+      '<details class="why"><summary>Почему так</summary>' +
+        '<p>BMR по Mifflin-St Jeor → Katch-McArdle → измеренному. Граммовки подбираются жадно по белку с приоритетом щадящих продуктов и вашей переносимости. Клетчатка, соль, сахар ограничиваются по фазе. Если цели недостижимы — мы честно скажем.</p>' +
+      '</details>';
+  }
+
+  function renderPlan() {
+    const stage = $('#stage');
+    const t = S.state.targetToday;
+    const plan = S.state.plan;
+    if (!stage || !t || !plan) return;
+    if (plan.error) {
+      stage.innerHTML = '<div class="section"><div class="card"><h2>План на день</h2><div class="alert">' + esc(plan.error) + '</div><button class="btn btn--primary" data-screen-toggle="foods">Добавить продукты →</button></div></div>';
+      return;
+    }
+    stage.innerHTML = '<div class="section">' +
+      '<div class="card"><h2>План на день</h2>' +
+      '<p class="muted">Граммы — сырой вес. Метод BMR: <strong>' + esc(plan.calc_method) + '</strong></p>' +
+      '<div class="counters">' +
+        ringHTML('ккал', t.kcal_target, plan.totals.kcal, 'ккал') +
+        ringHTML('белок', t.protein_g_target, plan.totals.protein_g, 'г') +
+        ringHTML('жиры', t.fat_g_target, plan.totals.fat_g, 'г') +
+        ringHTML('углеводы', t.carb_g_target, plan.totals.carb_g, 'г') +
+        ringHTML('клетчатка', t.fiber_g_target, plan.totals.fiber_g, 'г') +
+      '</div></div>' +
+      plan.slots.map((s) => (
+        '<article class="meal">' +
+          '<div class="meal__head"><h3>' + slotName(s.slot_name) + '</h3><small>≈ ' + Math.round(t.kcal_target * s.target_kcal_share / 100) + ' ккал</small></div>' +
+          '<div>' +
+            s.recommendations.map((r) => (
+              '<div class="meal__item">' +
+                '<div><div class="meal__item-name serif">' + esc(r.foodItemId) + '</div>' +
+                '<div class="meal__item-meta mono">' + r.grams_raw + ' г сыр. · ' + r.kcal + ' ккал · Б' + r.protein_g + ' Ж' + r.fat_g + ' У' + r.carb_g + ' · кл. ' + r.fiber_g + '</div>' +
+                (r.warnings.length ? '<div class="warn">⚠ ' + r.warnings.map((w) => esc(w.message)).join(' · ') + '</div>' : '') +
+                '</div>' +
+                '<div class="meal__item-actions">' +
+                  '<button data-replace="' + esc(r.foodItemId) + '" data-slot="' + s.slot_index + '">заменить</button>' +
+                  '<button data-log="' + esc(r.foodItemId) + '" data-grams="' + r.grams_raw + '" data-slot="' + s.slot_index + '">съела ✓</button>' +
+                '</div>' +
+              '</div>'
+            )).join('') +
+          '</div></article>'
+      )).join('') +
+      (plan.errors.length ? '<div class="alert">' + plan.errors.map(esc).join('<br>') + '</div>' : '') +
+      '<div style="text-align:center;margin-top:24px"><button class="btn btn--ghost" data-action="regen-plan">Сформировать заново</button></div>' +
+      '</div>';
+  }
+
+  function renderFoods() {
+    const stage = $('#stage');
+    if (!stage) return;
+    const allowed = S.state.foods || [];
+    const forb = S.state.forbidden || [];
+    stage.innerHTML = '<div class="section">' +
+      '<div class="card">' +
+        '<h2>Свои продукты</h2>' +
+        '<p class="muted">Добавьте, что реально едите. Все данные на 100 г сырого веса.</p>' +
+        '<input id="food-search" type="search" placeholder="Найти в справочнике…" style="width:100%;padding:16px 18px;border-radius:12px;border:1.5px solid var(--line);background:var(--cream);font-size:16px;margin-bottom:8px">' +
+        '<div id="food-search-results" class="search-results" hidden></div>' +
+      '</div>' +
+      '<div class="card"><h3>Разрешённые <span class="tiny" style="font-weight:normal">' + allowed.length + '</span></h3>' +
+        (allowed.length
+          ? '<ul class="chip-list">' + allowed.map((n) => '<li>' + esc(n) + '<button data-tol="' + esc(n) + '" title="Переносимость">⚖</button><button data-rm="' + esc(n) + '" title="Удалить">×</button></li>').join('') + '</ul>'
+          : '<p class="muted">Пока пусто. Найдите продукт в поиске выше и нажмите «разрешить».</p>') +
+      '</div>' +
+      '<div class="card"><h3>Исключённые <span class="tiny" style="font-weight:normal">' + forb.length + '</span></h3>' +
+        (forb.length
+          ? '<ul class="chip-list">' + forb.map((n) => '<li>' + esc(n) + '<button data-allow="' + esc(n) + '" title="Вернуть в разрешённые">↩</button></li>').join('') + '</ul>'
+          : '<p class="muted">Список пуст.</p>') +
+      '</div></div>';
+  }
+
+  function renderDiary() {
+    const stage = $('#stage');
+    if (!stage) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const entries = S.state.meals.filter((m) => m.date === today);
+    const tt = dayTotals();
+    const t = S.state.targetToday;
+    stage.innerHTML = '<div class="section">' +
+      '<div class="card"><h2>Дневник питания</h2>' +
+      (entries.length
+        ? '<ul class="log">' + entries.map((e) => '<li><span class="serif">' + esc(e.food_item) + '</span> · ' + e.grams_raw + ' г <small>' + slotName(['breakfast','lunch','snack','dinner'][e.slot_index - 1]) + '</small></li>').join('') + '</ul>' +
+          '<p class="muted small" style="margin-top:12px">Итого: ' + Math.round(tt.kcal) + ' ккал · Б' + Math.round(tt.protein_g) + ' Ж' + Math.round(tt.fat_g) + ' У' + Math.round(tt.carb_g) + ' · кл. ' + Math.round(tt.fiber_g) + '</p>'
+        : '<p class="muted">Записей нет. Съешьте что-нибудь из плана и нажмите «съела ✓» прямо там.</p>') +
+      '</div>' +
+      '<div class="card"><h3>Голосовое сообщение</h3>' +
+        '<p class="muted small">Зажмите кнопку — говорите. Отпустите — сохранится.</p>' +
+        '<button class="btn btn--primary" id="rec-btn">🎙 Записать</button>' +
+        '<div id="rec-status" class="muted small" style="margin-top:10px"></div>' +
+      '</div>' +
+      '<div class="card"><h3>Загрузить файл</h3>' +
+        '<p class="muted small">Фото рецепта, анализы, документы — до 10 МБ.</p>' +
+        '<input id="upload-input" type="file" accept="image/*,audio/*,.pdf,.txt" style="display:block">' +
+        '<ul id="upload-list" class="log" style="margin-top:16px"></ul>' +
+      '</div></div>';
+    bindRecorder();
+    bindUpload();
+  }
+
+  function renderSymptoms() {
+    const stage = $('#stage');
+    if (!stage) return;
+    const last = S.state.symptoms.find((s) => s.red_flag);
+    stage.innerHTML = '<div class="section">' +
+      (last ? '<div class="alert" style="background:rgba(194,91,58,.16);border-color:rgba(194,91,58,.4);border-left:4px solid #C25B3A"><strong>🚨 Запись, похожая на red-flag</strong><br>' + esc(last.note || last.all_types.join(', ')) + '<br><small class="muted">При крови, высокой температуре, сильной боли или признаках обезвоживания — обратитесь к врачу.</small></div>' : '') +
+      '<div class="card">' +
+        '<h2>Самочувствие</h2>' +
+        '<form id="form-symptom" class="form">' +
+          '<div class="field"><label>Что беспокоит</label><div class="chips">' +
+            ['боль', 'вздутие', 'стул изменён', 'тошнота', 'кровь', 'температура', 'общая слабость', 'другое'].map((s) =>
+              '<label class="chip"><input type="checkbox" name="symptomType" value="' + s + '"><span>' + s + '</span></label>'
+            ).join('') +
+          '</div></div>' +
+          '<div class="field"><label>Тяжесть: <output id="sev-out">3</output> / 10</label><input type="range" name="severity" min="0" max="10" value="3" style="width:100%"></div>' +
+          '<div class="field"><label>Когда появилось</label><input type="datetime-local" name="datetime"></div>' +
+          '<div class="field"><label>Связь с едой</label><input type="text" name="relatedFood" placeholder="напр.: после гречки вечером"></div>' +
+          '<div class="field"><label>Что-то ещё важное</label><textarea name="note" placeholder="о чём не спросили"></textarea></div>' +
+          '<button class="btn btn--primary" type="submit">Записать</button>' +
+        '</form>' +
+      '</div>' +
+      (S.state.symptoms.length
+        ? '<div class="card"><h3>История</h3><ul class="log">' + S.state.symptoms.slice(0, 30).map((s) => (
+            '<li class="' + (s.red_flag ? 'flag' : '') + '"><strong class="serif">' + s.all_types.map(esc).join(', ') + '</strong> · ' + s.severity + '/10<small>' + new Date(s.datetime).toLocaleString('ru-RU') + ' · фаза «' + s.phase + '»</small>' +
+            (s.note ? '<small>' + esc(s.note) + '</small>' : '') +
+            (s.related_foods ? '<small>🍽 ' + esc(s.related_foods) + '</small>' : '') +
+            '</li>'
+          )).join('') + '</ul></div>'
+        : '') +
+      '</div>';
+    const range = $('[name=severity]', form);
+    if (range) range.addEventListener('input', () => { $('#sev-out').textContent = range.value; });
+  }
+
+  function renderAnalytics(period) {
+    const stage = $('#stage');
+    if (!stage) return;
+    if (!S.state.meals.length) {
+      stage.innerHTML = '<div class="section"><div class="card"><h2>Аналитика</h2><p class="muted">Недостаточно данных. Заполняйте дневники.</p></div></div>';
+      return;
+    }
+    const t = S.state.targetToday;
+    const tt = dayTotals();
+    const bars = [
+      ['ккал', t.kcal_target, tt.kcal],
+      ['белок', t.protein_g_target, tt.protein_g],
+      ['жиры', t.fat_g_target, tt.fat_g],
+      ['углеводы', t.carb_g_target, tt.carb_g],
+      ['клетч.', t.fiber_g_target, tt.fiber_g]
+    ];
+    let periodHTML = '<div class="bars">' + bars.map((b) =>
+      '<div class="bar" style="height:' + Math.min(b[2] / b[1] * 100, 110) + '%" data-label="' + b[0] + '"></div>'
+    ).join('') + '</div>';
+
+    if (period === 'week') {
+      const days = [];
+      const d = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const x = new Date(d); x.setDate(x.getDate() - i);
+        days.push({ date: x.toISOString().slice(0, 10), label: x.toLocaleDateString('ru-RU', { weekday: 'short' }), kcal: 0 });
+      }
+      days.forEach((day) => {
+        S.state.meals.filter((m) => m.date === day.date).forEach((e) => {
+          const f = findFood(e.food_item);
+          if (f) day.kcal += f.kcal * e.grams_raw / 100;
+        });
+      });
+      periodHTML = '<div class="bars">' + days.map((d) =>
+        '<div class="bar" style="height:' + Math.min(d.kcal / t.kcal_target * 100, 110) + '%" data-label="' + esc(d.label) + '"></div>'
+      ).join('') + '</div>';
+    }
+
+    stage.innerHTML = '<div class="section">' +
+      '<div class="card"><h2>Аналитика</h2>' +
+      '<div class="tabs">' +
+        '<button class="tab ' + (period === 'day' ? 'is-active' : '') + '" data-tab="day">День</button>' +
+        '<button class="tab ' + (period === 'week' ? 'is-active' : '') + '" data-tab="week">Неделя</button>' +
+      '</div>' +
+      periodHTML +
+      '<p class="muted small" style="margin-top:24px">Любые корреляции — гипотезы, не доказано. Решения принимайте с врачом.</p>' +
+      '</div></div>';
+  }
+
+  function renderSettings() {
+    const stage = $('#stage');
+    if (!stage) return;
+    const s = S.state.settings;
+    stage.innerHTML = '<div class="section">' +
+      '<div class="card"><h2>Настройки</h2>' +
+        '<form id="form-settings" class="form">' +
+          '<div class="field"><label>Приёмов пищи в день</label><input type="number" name="mealsPerDay" min="2" max="6" value="' + s.mealsPerDay + '"></div>' +
+          '<div class="field"><label>Доли калорий по приёмам (Σ = 100)</label>' +
+            '<div class="row">' +
+              '<input type="number" name="shareBreakfast" min="10" max="60" value="' + s.shares.breakfast + '" placeholder="Завтрак %">' +
+              '<input type="number" name="shareLunch" min="10" max="60" value="' + s.shares.lunch + '" placeholder="Обед %">' +
+              '<input type="number" name="shareSnack" min="5" max="40" value="' + s.shares.snack + '" placeholder="Полдник %">' +
+              '<input type="number" name="shareDinner" min="10" max="60" value="' + s.shares.dinner + '" placeholder="Ужин %">' +
+            '</div></div>' +
+          '<button class="btn btn--primary" type="submit">Сохранить</button>' +
+        '</form>' +
+      '</div>' +
+      '<div class="card"><h3>Данные</h3>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn btn--ghost" data-action="export">⬇ Экспорт</button>' +
+          '<label class="btn btn--ghost" for="import-input" style="cursor:pointer">⬆ Импорт</label>' +
+          '<input id="import-input" type="file" accept="application/json" style="display:none">' +
+          '<button class="btn btn--small" data-action="reset" style="margin-left:auto;color:#C25B3A;border-color:rgba(194,91,58,.3)">Стереть всё</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card"><h3>Дисклеймер</h3>' +
+        '<p class="muted"><strong>Навигатор питания</strong> — информационный помощник. Не ставит диагнозы, не назначает лечение, не заменяет врача. Рекомендации носят справочный характер и требуют согласования с лечащим врачом. При крови, высокой температуре, сильной боли или признаках обезвоживания — обратитесь к врачу.</p>' +
+      '</div></div>';
+  }
+
+  function renderDisclaimer() {
+    const stage = $('#stage');
+    if (!stage) return;
+    stage.innerHTML = '<div class="section"><div class="card"><h2>Важно</h2>' +
+      '<p><strong>Навигатор питания</strong> — информационно-вспомогательный инструмент. Он <strong>не ставит диагнозы</strong>, <strong>не назначает лечение</strong> и <strong>не заменяет консультацию врача</strong>.</p>' +
+      '<ul style="margin:16px 0;padding-left:24px;color:var(--ink-soft)">' +
+        '<li style="margin:8px 0">Рекомендации носят <strong>справочный</strong> характер и требуют согласования с лечащим врачом.</li>' +
+        '<li style="margin:8px 0">При <strong>крови, высокой температуре, сильной боли, признаках обезвоживания</strong> — обратитесь к врачу.</li>' +
+        '<li style="margin:8px 0">При хронических заболеваниях рацион согласуется со специалистом.</li>' +
+        '<li style="margin:8px 0">«Гипотезы переносимости» не являются доказанными.</li>' +
+      '</ul></div></div>';
+  }
+
+  // ========== Recorder & upload ==========
+  function bindRecorder() {
+    const btn = $('#rec-btn');
+    const status = $('#rec-status');
+    if (!btn) return;
+    let rec = null, chunks = [];
+    btn.addEventListener('click', async () => {
+      if (rec) {
+        rec.stop(); return;
+      }
+      if (!navigator.mediaDevices || !window.MediaRecorder) {
+        status.textContent = 'Запись не поддерживается этим браузером.';
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        rec = new MediaRecorder(stream);
+        chunks = [];
+        rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+        rec.onstop = () => {
+          const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+          const url = URL.createObjectURL(blob);
+          status.innerHTML = '<audio controls src="' + url + '" style="width:100%;margin-top:8px"></audio><br><small>Готово. Сохранено локально в этом браузере.</small>';
+          stream.getTracks().forEach((t) => t.stop());
+          rec = null;
+        };
+        rec.start();
+        status.textContent = 'Идёт запись… нажмите, чтобы остановить';
+        btn.textContent = '⏹ Остановить';
+      } catch (e) {
+        status.textContent = 'Нет доступа к микрофону. Разрешите в настройках браузера.';
+      }
+    });
+  }
+
+  function bindUpload() {
+    const input = $('#upload-input');
+    if (!input) return;
+    input.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (f.size > 10 * 1024 * 1024) { toast('Файл больше 10 МБ'); return; }
+      const blobUrl = URL.createObjectURL(f);
+      const list = $('#upload-list');
+      const li = document.createElement('li');
+      if (f.type.startsWith('image/')) {
+        li.innerHTML = '<img src="' + blobUrl + '" style="max-width:120px;max-height:80px;border-radius:8px;margin-right:10px"><span>' + esc(f.name) + '</span>';
+      } else if (f.type.startsWith('audio/')) {
+        li.innerHTML = '<audio controls src="' + blobUrl + '" style="margin-right:10px"></audio><span>' + esc(f.name) + '</span>';
+      } else {
+        li.innerHTML = '<a href="' + blobUrl + '" target="_blank" rel="noopener">' + esc(f.name) + '</a>';
+      }
+      list.appendChild(li);
+      toast('«' + f.name + '» загружен');
+    });
+  }
+
+  function paintRibbon() {
+    $('#ribbon').hidden = !!S.state.ribbonHidden;
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const el = $('#toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 3000);
+  }
+
+  function refreshScreen(name) {
+    if (name === 'today') renderToday();
+    else if (name === 'plan') renderPlan();
+    else if (name === 'foods') renderFoods();
+    else if (name === 'diary') renderDiary();
+    else if (name === 'symptoms') renderSymptoms();
+    else if (name === 'analytics') renderAnalytics('day');
+    else if (name === 'settings') renderSettings();
+    else if (name === 'disclaimer') renderDisclaimer();
+  }
+
+  function refreshToday() { if (S.current === 'today') renderToday(); }
+  function refreshAll() { renderToday(); }
+
+  // ========== BOOT ==========
+  document.addEventListener('DOMContentLoaded', () => S.init());
 })();
