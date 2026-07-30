@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-192.svg">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=12">
 <script>
 (function(){
   if ('serviceWorker' in navigator) {
@@ -22,20 +22,35 @@
 </head>
 <body>
 
-<section class="screen screen-splash active" id="screen-splash">
-  <div class="splash-art">
-    <img src="assets/image1.jpg" alt="Стресс от выбора еды" class="splash-img">
+<section class="screen screen-welcome active" id="screen-welcome">
+  <header class="welcome-header">
+    <div class="welcome-logo">
+      <span class="ld-logo-leaf">🌿</span>
+      <span class="welcome-logo-text">Навигатор питания</span>
+    </div>
+  </header>
+  <div class="welcome-content">
+    <div class="welcome-art welcome-art-1">
+      <div style="padding:60px 20px;text-align:center;color:var(--g)">
+        <div style="font-size:60px">🤔</div>
+        <div style="margin-top:12px;font-weight:700;font-size:18px">Сложно выбрать, что поесть?</div>
+        <div style="font-size:13px;color:var(--t2);margin-top:8px;line-height:1.5">Непереносимость, аллергия, запрет врача, нет в наличии...</div>
+      </div>
+    </div>
+    <div class="welcome-message">
+      <p class="welcome-headline">Если вы не хотите ломать голову, какие продукты купить, что приготовить, и чтобы питание было сбалансированным и полезным — <b>то вам сюда!</b></p>
+    </div>
+    <div class="welcome-art welcome-art-2">
+      <div style="padding:60px 20px;text-align:center;color:var(--g)">
+        <div style="font-size:60px">🤝</div>
+        <div style="margin-top:12px;font-weight:700;font-size:18px">Не паникуй — мы поможем!</div>
+        <div style="font-size:13px;color:var(--t2);margin-top:8px;line-height:1.5">Учтём ограничения, предпочтения и наличие продуктов</div>
+      </div>
+    </div>
   </div>
-  <div class="splash-cta">
-    <button class="btn btn-splash" id="splash-go">Хочу разобраться</button>
-    <div class="splash-hint">Нажмите в любом месте, чтобы продолжить</div>
-  </div>
-</section>
-
-<section class="screen screen-intro" id="screen-intro">
-  <div class="intro-scene">
-    <img src="assets/image2.jpg" alt="Знакомство с помощником" class="intro-img">
-    <button class="btn btn-start" id="intro-start">СТАРТ</button>
+  <div class="welcome-footer">
+    <button class="btn btn-start-big" id="welcome-start">СТАРТ</button>
+    <div class="welcome-hint">Нажмите, чтобы начать</div>
   </div>
 </section>
 
@@ -45,37 +60,34 @@
       <span class="ld-logo-leaf">🌿</span>
       <span class="ld-logo-text">Ваш персональный помощник по питанию</span>
     </div>
-    <nav class="ld-nav" aria-label="Навигация">
-      <a href="#how" data-nav>Как это работает</a>
-      <a href="#help" data-nav>Чем мы можем помочь</a>
-      <a href="#who" data-nav>Кому подойдет</a>
-      <a href="#reviews" data-nav>Отзывы</a>
-      <a href="#faq" data-nav>Вопросы и ответы</a>
+    <nav class="ld-nav">
+      <a href="#how">Как это работает</a>
+      <a href="#help">Чем мы можем помочь</a>
+      <a href="#who">Кому подойдет</a>
+      <a href="#reviews">Отзывы</a>
+      <a href="#faq">Вопросы и ответы</a>
     </nav>
     <button class="btn btn-primary ld-cta-top" data-go-app>Начать бесплатно</button>
-    <button class="ld-burger" id="ld-burger" aria-label="Меню">☰</button>
   </header>
 
   <section class="ld-hero">
     <div class="ld-hero-text">
+      <div class="ld-tagline">🌿 Забота о здоровье каждый день</div>
       <h1>Персональное питание, продуманное для вас</h1>
-      <p class="ld-hero-p">Подбираем рацион с учётом здоровья, продуктов, которые уже есть дома, и рекомендаций врача. Экономьте время, деньги и заботьтесь о себе и близких.</p>
+      <p class="ld-hero-p">Мы подбираем рацион с учётом вашего здоровья, продуктов дома, рекомендаций врача и ваших предпочтений. Экономим ваше время и заботимся о самом важном — о вас и вашей семье.</p>
       <ul class="ld-features">
-        <li><span class="ld-fi">🌿</span><span>Учитываем здоровье и рекомендации врача</span></li>
+        <li><span class="ld-fi">🛡️</span><span>Учитываем здоровье и рекомендации врача</span></li>
         <li><span class="ld-fi">🍽️</span><span>Готовые блюда и рецепты</span></li>
         <li><span class="ld-fi">🏠</span><span>Используем продукты, которые есть дома</span></li>
         <li><span class="ld-fi">📅</span><span>Планируйте на день, неделю или больше</span></li>
         <li><span class="ld-fi">🛒</span><span>Подсказываем, что купить в вашем магазине</span></li>
-        <li><span class="ld-fi">🛡️</span><span>Безопасно и конфиденциально</span></li>
+        <li><span class="ld-fi">🔒</span><span>Безопасно и конфиденциально</span></li>
       </ul>
       <div class="ld-cta-wrap">
         <button class="btn btn-primary ld-cta-main" data-go-app>Начать бесплатно</button>
         <div class="ld-cta-note">7 дней бесплатно • Без привязки карты</div>
         <div class="ld-handwritten">Ответьте на несколько вопросов — остальное мы сделаем за вас ✏️</div>
       </div>
-    </div>
-    <div class="ld-hero-visual">
-      <img src="assets/image3.jpg" alt="Пример приложения" class="ld-hero-img">
     </div>
   </section>
 
@@ -85,57 +97,57 @@
     <p class="ld-text">Создайте профиль, расскажите о своём здоровье и предпочтениях, добавьте продукты, которые уже есть дома, и получите персональный план питания с рецептами, списком покупок и рекомендациями именно для вас.</p>
     <div class="ld-steps">
       <div class="ld-step"><div class="ld-step-num">1</div><div class="ld-step-icon">👤</div><div class="ld-step-h">Создайте профиль</div><div class="ld-step-t">Укажите данные о себе и вашей семье</div></div>
-      <div class="ld-step"><div class="ld-step-num">2</div><div class="ld-step-icon">❤️</div><div class="ld-step-h">Расскажите о здоровье и предпочтениях</div><div class="ld-step-t">Укажите рекомендации врача, аллергии, цели и вкусы</div></div>
-      <div class="ld-step"><div class="ld-step-num">3</div><div class="ld-step-icon">🛒</div><div class="ld-step-h">Добавьте продукты дома</div><div class="ld-step-t">Вручную, фото или скан чека — мы учтём, что у вас есть</div></div>
-      <div class="ld-step"><div class="ld-step-num">4</div><div class="ld-step-icon">🍽️</div><div class="ld-step-h">Получите персональный план</div><div class="ld-step-t">Блюда, рецепты и список покупок — всегда под рукой</div></div>
+      <div class="ld-step"><div class="ld-step-num">2</div><div class="ld-step-icon">❤️</div><div class="ld-step-h">Здоровье и предпочтения</div><div class="ld-step-t">Укажите рекомендации врача, аллергии, цели</div></div>
+      <div class="ld-step"><div class="ld-step-num">3</div><div class="ld-step-icon">🛒</div><div class="ld-step-h">Добавьте продукты дома</div><div class="ld-step-t">Вручную, фото или скан чека</div></div>
+      <div class="ld-step"><div class="ld-step-num">4</div><div class="ld-step-icon">🍽️</div><div class="ld-step-h">Получите план</div><div class="ld-step-t">Блюда, рецепты и список покупок</div></div>
     </div>
   </section>
 
   <section class="ld-section ld-grey" id="help">
     <h2 class="ld-h2">Чем мы можем помочь</h2>
-    <p class="ld-sub">Мы берём на себя ежедневные заботы о вашем питании</p>
+    <p class="ld-sub">Мы берем на себя ежедневные заботы о вашем питании</p>
     <p class="ld-text">Наш сервис помогает сделать питание проще, удобнее и полезнее. Мы поможем вам:</p>
-    <div class="ld-help">
-      <div class="ld-help-card"><span>📅</span><b>Планирование питания</b></div>
-      <div class="ld-help-card"><span>👨‍👩‍👧</span><b>Для всей семьи</b></div>
-      <div class="ld-help-card"><span>❤️</span><b>Учёт здоровья и рекомендаций</b></div>
-      <div class="ld-help-card"><span>🛒</span><b>Список покупок автоматически</b></div>
-      <div class="ld-help-card"><span>🍴</span><b>Питание вне дома (ресторан, гости)</b></div>
-      <div class="ld-help-card"><span>🎤</span><b>Голосовой ввод и фото продуктов</b></div>
-      <div class="ld-help-card"><span>📄</span><b>Загрузка анализов и документов</b></div>
-      <div class="ld-help-card"><span>🔒</span><b>Безопасно и конфиденциально</b></div>
-    </div>
+    <ul class="ld-help-list">
+      <li><span class="ld-help-check">✓</span> подобрать персональный рацион с учетом состояния здоровья;</li>
+      <li><span class="ld-help-check">✓</span> использовать продукты, которые уже есть дома;</li>
+      <li><span class="ld-help-check">✓</span> составить меню на день, неделю или месяц;</li>
+      <li><span class="ld-help-check">✓</span> автоматически сформировать список покупок;</li>
+      <li><span class="ld-help-check">✓</span> подобрать блюда в ресторане или в гостях;</li>
+      <li><span class="ld-help-check">✓</span> учитывать рекомендации врача, аллергии и ограничения;</li>
+      <li><span class="ld-help-check">✓</span> загружать анализы и документы;</li>
+      <li><span class="ld-help-check">✓</span> пользоваться голосовым вводом, фотографиями и другими способами.</li>
+    </ul>
     <p class="ld-text">Вы меньше думаете о том, что приготовить, а больше времени уделяете себе и своей семье.</p>
   </section>
 
   <section class="ld-section" id="who">
     <h2 class="ld-h2">Кому подойдет</h2>
     <p class="ld-sub">Сервис создан для людей с разными потребностями и образом жизни</p>
-    <p class="ld-text">Он особенно подойдёт:</p>
-    <div class="ld-who">
-      <div class="ld-who-card"><span class="ld-who-emo">❤️</span><b>Людям с хроническими заболеваниями</b><span>Питание с учётом диагноза и рекомендаций врача</span></div>
-      <div class="ld-who-card"><span class="ld-who-emo">👨‍👩‍👧</span><b>Семьям</b><span>Индивидуальные рекомендации для каждого члена семьи</span></div>
-      <div class="ld-who-card"><span class="ld-who-emo">💪</span><b>Спортсменам и активным людям</b><span>Сбалансированное питание для энергии и результата</span></div>
-      <div class="ld-who-card"><span class="ld-who-emo">🧓</span><b>Пожилым людям</b><span>Поддержка здоровья и энергии</span></div>
-      <div class="ld-who-card"><span class="ld-who-emo">🌿</span><b>Всем, кто хочет питаться правильно и с пользой</b><span>Экономия времени, денег и забота о себе</span></div>
-    </div>
+    <p class="ld-text">Он особенно подойдет:</p>
+    <ul class="ld-who-list">
+      <li><span class="ld-who-emo">❤️</span><b>людям с хроническими заболеваниями;</b></li>
+      <li><span class="ld-who-emo">👨‍👩‍👧</span><b>семьям,</b> где у каждого свои предпочтения и особенности питания;</li>
+      <li><span class="ld-who-emo">💪</span><b>спортсменам и активным людям;</b></li>
+      <li><span class="ld-who-emo">🧓</span><b>пожилым людям;</b></li>
+      <li><span class="ld-who-emo">🌿</span><b>всем, кто хочет питаться правильно, экономить время и рационально использовать продукты.</b></li>
+    </ul>
   </section>
 
   <section class="ld-section ld-grey" id="reviews">
     <h2 class="ld-h2">Отзывы наших пользователей</h2>
     <p class="ld-sub">Истории людей, которым сервис уже помогает каждый день</p>
-    <p class="ld-text">Мы рады, что наши пользователи доверяют нам заботу о своём ежедневном питании. Их отзывы помогают нам развивать сервис и делать его ещё полезнее.</p>
+    <p class="ld-text">Мы рады, что наши пользователи доверяют нам заботу о своём ежедневном питании. Их отзывы помогают нам развивать сервис и делать его еще полезнее.</p>
     <div class="ld-reviews">
-      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">А</div><div><b>Анна</b>, 34 года</div></div><div class="ld-stars">★★★★★</div><p>«Изменила свой подход к питанию. Меню разнообразное и вкусное, а я наконец перестала каждый день ломать голову «что приготовить». Рекомендую!»</p></div>
-      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">М</div><div><b>Мария</b>, 52 года</div></div><div class="ld-stars">★★★★★</div><p>«Очень радует, что сервис учитывает рекомендации врача и то, что уже есть дома. Экономит и время, и деньги. Спасибо!»</p></div>
-      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">И</div><div><b>Игорь</b>, 28 лет</div></div><div class="ld-stars">★★★★★</div><p>«Экономлю время и деньги, питаюсь правильно. Раньше на это уходили часы, теперь — пара минут. Очень удобно!»</p></div>
+      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">А</div><div><b>Анна</b>, 34 года</div></div><div class="ld-stars">★★★★★</div><p>«Сервис полностью изменил мой подход к питанию. Меню разнообразное и очень вкусное!»</p></div>
+      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">М</div><div><b>Мария</b>, 52 года</div></div><div class="ld-stars">★★★★★</div><p>«Очень удобно, что учитываются рекомендации врача и продукты, которые есть дома.»</p></div>
+      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">И</div><div><b>Игорь</b>, 28 лет</div></div><div class="ld-stars">★★★★★</div><p>«Экономлю время, деньги и ем с пользой для здоровья. Рекомендую всем!»</p></div>
     </div>
   </section>
 
   <section class="ld-section" id="faq">
     <h2 class="ld-h2">Остались вопросы?</h2>
-    <p class="ld-sub">Мы собрали ответы на самые частые вопросы</p>
-    <p class="ld-text">Здесь вы найдёте ответы о регистрации, бесплатном периоде, безопасности данных, работе с анализами, использовании сервиса всей семьёй и других возможностях.</p>
+    <p class="ld-sub">Ответы на самые популярные вопросы</p>
+    <p class="ld-text">Здесь вы найдете ответы на вопросы о регистрации, бесплатном периоде, безопасности персональных данных, работе с анализами, использовании сервиса всей семьей, рекомендациях по питанию и других возможностях.</p>
     <button class="btn btn-primary ld-faq-btn" data-go-app>Перейти в приложение</button>
   </section>
 
@@ -177,7 +189,7 @@
       <span class="ld-logo-leaf">🌿</span>
       <span class="app-side-title">Ваш помощник<br>по питанию</span>
     </div>
-    <nav class="app-side-nav" aria-label="Разделы">
+    <nav class="app-side-nav">
       <a href="#" class="app-nav-item active" data-screen="home"><span>🏠</span>Главная</a>
       <a href="#" class="app-nav-item" data-screen="profile"><span>👤</span>Профиль</a>
       <a href="#" class="app-nav-item" data-screen="products"><span>🥬</span>Продукты дома</a>
@@ -187,22 +199,14 @@
       <a href="#" class="app-nav-item" data-screen="progress"><span>📈</span>Прогресс</a>
       <a href="#" class="app-nav-item" data-screen="settings"><span>⚙️</span>Настройки</a>
     </nav>
-    <div class="app-side-premium">
-      <div class="app-prem-icon">🎁</div>
-      <div class="app-prem-t"><b>Премиум</b><br><span>Расширенные возможности и персональные рекомендации</span></div>
-      <button class="btn btn-ghost-sm">Перейти</button>
-    </div>
     <div class="app-side-help">
       <span>🎧</span>
       <div><b>Нужна помощь?</b><br><small>Напишите нам в поддержку</small></div>
     </div>
   </aside>
-
   <main class="app-main" id="app-main"></main>
   <aside class="app-aside" id="app-aside"></aside>
-
-  <button class="app-mobile-menu" id="app-mobile-menu" aria-label="Меню">☰</button>
-  <nav class="app-bottom-nav" aria-label="Мобильная навигация">
+  <nav class="app-bottom-nav">
     <a href="#" class="active" data-screen="home"><span>🏠</span><small>Главная</small></a>
     <a href="#" data-screen="profile"><span>👤</span><small>Профиль</small></a>
     <a href="#" data-screen="products"><span>🥬</span><small>Продукты</small></a>
@@ -215,7 +219,7 @@
   <div class="modal" id="modal-content"></div>
 </div>
 
-<script src="seed.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="seed.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
