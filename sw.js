@@ -1,14 +1,18 @@
 /* Навигатор питания — Service Worker (cache-first) */
-const CACHE = 'navpit-v3';
+const CACHE = 'navpit-v4';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=3',
-  './seed.js?v=3',
-  './app.js?v=3',
+  './styles.css?v=4',
+  './seed.js?v=4',
+  './app.js?v=4',
   './manifest.json',
   './assets/icon-192.svg',
-  './assets/icon-512.svg'
+  './assets/icon-512.svg',
+  './assets/image1.jpg',
+  './assets/image2.jpg',
+  './assets/image3.jpg',
+  './assets/image4.jpg'
 ];
 
 self.addEventListener('install', (e) => {
