@@ -5,129 +5,416 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2E7D5C">
 <title>Навигатор питания</title>
+<meta name="description" content="Ваш персональный помощник по питанию: рацион с учётом здоровья, продуктов дома и рекомендаций врача.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-192.svg">
-<link rel="stylesheet" href="styles.css?v=2">
-</head>
-<body>
-
-<!-- ЭКРАН 1: ПРИВЛЕКАЮЩАЯ СТРАНИЦА -->
-<section id="screen-splash" class="screen screen-splash active">
-  <div class="splash-wrap">
-    <div class="splash-cloud-big">
-      <div class="cloud-line">Боже, чем питаться?</div>
-      <div class="cloud-line">Что приготовить?</div>
-      <div class="cloud-line">Где купить?</div>
-      <div class="cloud-line">Как сбалансировать питание?</div>
-    </div>
-
-    <div class="splash-scene">
-      <div class="food-chip chip-a">Гречка</div>
-      <div class="food-chip chip-b">Овсянка</div>
-      <div class="food-chip chip-c">Рыба</div>
-      <div class="food-chip chip-d">Овощи</div>
-      <div class="food-chip chip-e">Мясо</div>
-      <div class="food-chip chip-f">Яйца</div>
-
-      <div class="splash-person" aria-hidden="true">
-        <svg viewBox="0 0 220 260" width="220" height="260">
-          <ellipse cx="110" cy="248" rx="70" ry="10" fill="#000" opacity="0.08"/>
-          <path d="M60 250 Q60 150 110 150 Q160 150 160 250 Z" fill="#5EC5B6" stroke="#111" stroke-width="4"/>
-          <circle cx="110" cy="95" r="52" fill="#FFE0C2" stroke="#111" stroke-width="4"/>
-          <path d="M58 80 Q60 30 110 32 Q160 30 162 80 Q150 55 110 55 Q70 55 58 80Z" fill="#7A4A2B" stroke="#111" stroke-width="4"/>
-          <path d="M88 96 q8 -8 16 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <path d="M116 96 q8 -8 16 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <path d="M96 122 q14 10 28 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <path d="M60 120 Q40 90 62 70" stroke="#FFE0C2" stroke-width="16" fill="none" stroke-linecap="round"/>
-          <path d="M160 120 Q180 90 158 70" stroke="#FFE0C2" stroke-width="16" fill="none" stroke-linecap="round"/>
-          <path d="M60 120 Q40 90 62 70" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.25"/>
-        </svg>
-      </div>
-
-      <div class="bolt bolt-1">/</div>
-      <div class="bolt bolt-2">/</div>
-      <div class="splash-small-cloud sc-1">1) непереносимость</div>
-      <div class="splash-small-cloud sc-2">2) аллергия</div>
-      <div class="splash-small-cloud sc-3">3) запрет врача</div>
-      <div class="splash-small-cloud sc-4">4) этих продуктов нет у нас</div>
-    </div>
-
-    <button class="btn btn-hero" id="splash-go">Хочу разобраться</button>
-    <p class="splash-hint">Нажмите в любом месте, чтобы продолжить</p>
-  </div>
-</section>
-
-<!-- ЭКРАН 2: ЗНАКОМСТВО -->
-<section id="screen-intro" class="screen screen-intro">
-  <div class="intro-wrap">
-    <div class="speech-bubble">
-      <h2>Не паникуй.</h2>
-      <p>Я тебе помогу и учту не только твои ограничения, но и твои пожелания и предпочтения, и конечно, наличие продуктов в твоём регионе.</p>
-      <p>Но сначала нам надо подружиться. Давай познакомимся.</p>
-      <p>И чтобы начать наш путь, нажми на кнопку <b>СТАРТ</b>.</p>
-    </div>
-
-    <div class="intro-people">
-      <div class="person helper" aria-hidden="true">
-        <svg viewBox="0 0 160 220" width="150" height="210">
-          <ellipse cx="80" cy="210" rx="55" ry="8" fill="#000" opacity="0.08"/>
-          <path d="M40 212 Q40 120 80 120 Q120 120 120 212 Z" fill="#F4C430" stroke="#111" stroke-width="4"/>
-          <circle cx="80" cy="78" r="42" fill="#FFE0C2" stroke="#111" stroke-width="4"/>
-          <path d="M40 66 Q42 26 80 28 Q118 26 120 66 Q108 45 80 45 Q52 45 40 66Z" fill="#3B2A1A" stroke="#111" stroke-width="4"/>
-          <circle cx="66" cy="80" r="4" fill="#111"/>
-          <circle cx="94" cy="80" r="4" fill="#111"/>
-          <path d="M68 96 q12 8 24 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <path d="M118 140 q28 -6 36 24" stroke="#F4C430" stroke-width="14" fill="none" stroke-linecap="round"/>
-          <path d="M118 140 q28 -6 36 24" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.25"/>
-        </svg>
-      </div>
-      <div class="person user" aria-hidden="true">
-        <svg viewBox="0 0 160 220" width="150" height="210">
-          <ellipse cx="80" cy="210" rx="55" ry="8" fill="#000" opacity="0.08"/>
-          <path d="M46 212 Q40 150 80 150 Q120 150 114 212 Z" fill="#F7A8C4" stroke="#111" stroke-width="4"/>
-          <path d="M40 152 Q40 122 80 122 Q120 122 120 152 Z" fill="#5EC5B6" stroke="#111" stroke-width="4"/>
-          <circle cx="80" cy="80" r="42" fill="#FFE0C2" stroke="#111" stroke-width="4"/>
-          <path d="M40 74 Q40 30 80 32 Q120 30 120 74 Q120 96 112 104 Q112 60 80 58 Q48 60 48 104 Q40 96 40 74Z" fill="#6B4A2A" stroke="#111" stroke-width="4"/>
-          <circle cx="66" cy="82" r="4" fill="#111"/>
-          <circle cx="94" cy="82" r="4" fill="#111"/>
-          <path d="M70 100 q10 4 20 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <text x="120" y="40" font-size="34" fill="#F7A8C4" font-weight="bold">?</text>
-        </svg>
-      </div>
-    </div>
-
-    <div class="intro-decor d1">Брокколи</div>
-    <div class="intro-decor d2">Лосось</div>
-    <div class="intro-decor d3">Яблоко</div>
-    <div class="intro-decor d4">Рис</div>
-
-    <div class="start-zone">
-      <div class="start-arrow" aria-hidden="true">
-        <svg viewBox="0 0 80 60" width="70" height="52"><path d="M6 10 Q40 6 60 40" stroke="#F7A8C4" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M60 40 l-14 -4 M60 40 l-2 -14" stroke="#F7A8C4" stroke-width="6" fill="none" stroke-linecap="round"/></svg>
-      </div>
-      <button class="btn btn-start" id="intro-start">СТАРТ</button>
-    </div>
-  </div>
-</section>
-
-<!-- ЭКРАН 3: ЛЕНДИНГ -->
-<section id="screen-landing" class="screen screen-landing"></section>
-
-<!-- ЭКРАН 4: ЛИЧНЫЙ КАБИНЕТ -->
-<section id="screen-app" class="screen screen-app"></section>
-
+<link rel="stylesheet" href="styles.css?v=3">
 <script>
 /* Cache-busting: снимаем регистрацию старого SW перед загрузкой */
 (function(){
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(regs){
-      regs.forEach(function(r){ r.unregister(); });
+      regs.forEach(function(r){ try{ r.unregister(); }catch(e){} });
     }).catch(function(){});
   }
 })();
 </script>
-<script src="seed.js?v=2"></script>
-<script src="app.js?v=2"></script>
+</head>
+<body>
+
+<!-- ============ ЭКРАН 1: Привлекающая страница ============ -->
+<section class="screen screen-splash active" id="screen-splash">
+  <div class="splash-bg" aria-hidden="true">
+    <div class="cloud-big">
+      <div class="cloud-bubble">
+        <div class="cb-line">Боже, чем питаться?</div>
+        <div class="cb-line">Что приготовить?</div>
+        <div class="cb-line">Где купить?</div>
+        <div class="cb-line">Как сбалансировать питание?</div>
+      </div>
+    </div>
+    <div class="cloud-num cloud-num-1"><span class="cn-num">1)</span> непереносимость</div>
+    <div class="cloud-num cloud-num-2"><span class="cn-num">2)</span> аллергия</div>
+    <div class="cloud-num cloud-num-3"><span class="cn-num">3)</span> запрет врача</div>
+    <div class="cloud-num cloud-num-4"><span class="cn-num">4)</span> этих продуктов нет у нас</div>
+    <div class="cloud-num cloud-num-etc">и т.д.</div>
+
+    <div class="food food-bag-1">ГРЕЧКА</div>
+    <div class="food food-bag-2">ОВСЯНКА</div>
+    <div class="food-icon food-veg-1">🥦</div>
+    <div class="food-icon food-veg-2">🥕</div>
+    <div class="food-icon food-veg-3">🥒</div>
+    <div class="food-icon food-veg-4">🍅</div>
+    <div class="food-icon food-veg-5">🥬</div>
+    <div class="food-icon food-veg-6">🫑</div>
+    <div class="food-icon food-veg-7">🥔</div>
+    <div class="food-icon food-veg-8">🍆</div>
+    <div class="food-icon food-fruit-1">🍎</div>
+    <div class="food-icon food-fruit-2">🍌</div>
+    <div class="food-icon food-fruit-3">🍇</div>
+    <div class="food-icon food-fruit-4">🍐</div>
+    <div class="food-icon food-fruit-5">🍊</div>
+    <div class="food-icon food-meat-1">🥩</div>
+    <div class="food-icon food-meat-2">🍗</div>
+    <div class="food-icon food-meat-3">🌭</div>
+    <div class="food-icon food-fish-1">🐟</div>
+    <div class="food-icon food-bread-1">🍞</div>
+    <div class="food-icon food-rice-1">🍚</div>
+    <div class="food-icon food-egg-1">🥚</div>
+    <div class="food-icon food-cheese-1">🧀</div>
+    <div class="food-icon food-grain-1">🌾</div>
+
+    <div class="hourglass-1">⏳</div>
+    <div class="hourglass-2">⏳</div>
+    <div class="phone-icon">📱</div>
+    <div class="sad-face">☹️</div>
+    <div class="bolt-1">⚡</div>
+    <div class="bolt-2">⚡</div>
+    <div class="bolt-3">⚡</div>
+  </div>
+
+  <div class="splash-figure" aria-hidden="true">
+    <svg viewBox="0 0 200 320" xmlns="http://www.w3.org/2000/svg" class="splash-person-svg">
+      <path d="M55 75 Q55 30 100 30 Q145 30 145 75 L150 165 Q150 175 140 178 L60 178 Q50 175 50 165 Z" fill="#6a3e1f" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="100" cy="100" rx="42" ry="48" fill="#fde2c4" stroke="#000" stroke-width="3"/>
+      <path d="M78 95 Q83 100 88 95" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M112 95 Q117 100 122 95" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M75 82 L92 80" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+      <path d="M108 80 L125 82" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+      <path d="M88 125 Q100 118 112 125" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M75 130 Q60 100 65 70" stroke="#fde2c4" stroke-width="14" fill="none" stroke-linecap="round"/>
+      <path d="M125 130 Q140 100 135 70" stroke="#fde2c4" stroke-width="14" fill="none" stroke-linecap="round"/>
+      <circle cx="65" cy="68" r="10" fill="#fde2c4" stroke="#000" stroke-width="3"/>
+      <circle cx="135" cy="68" r="10" fill="#fde2c4" stroke="#000" stroke-width="3"/>
+      <path d="M55 175 Q55 165 75 165 L125 165 Q145 165 145 175 L150 270 L50 270 Z" fill="#2bb3a8" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M70 200 Q80 190 90 200 Q100 210 110 200 Q120 190 130 200" stroke="#1a8a82" stroke-width="2" fill="none"/>
+      <path d="M70 230 Q80 220 90 230 Q100 240 110 230 Q120 220 130 230" stroke="#1a8a82" stroke-width="2" fill="none"/>
+      <path d="M50 270 L150 270 L165 305 L35 305 Z" fill="#ec5b8a" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+      <rect x="70" y="305" width="20" height="15" fill="#fde2c4" stroke="#000" stroke-width="3"/>
+      <rect x="110" y="305" width="20" height="15" fill="#fde2c4" stroke="#000" stroke-width="3"/>
+      <ellipse cx="80" cy="320" rx="14" ry="6" fill="#3a64b8" stroke="#000" stroke-width="2"/>
+      <ellipse cx="120" cy="320" rx="14" ry="6" fill="#3a64b8" stroke="#000" stroke-width="2"/>
+    </svg>
+  </div>
+
+  <div class="splash-cta">
+    <button class="btn btn-splash" id="splash-go">Хочу разобраться</button>
+    <div class="splash-hint">Нажмите в любом месте, чтобы продолжить</div>
+  </div>
+</section>
+
+<!-- ============ ЭКРАН 2: Знакомство ============ -->
+<section class="screen screen-intro" id="screen-intro">
+  <div class="intro-scene">
+    <div class="intro-foods" aria-hidden="true">
+      <span class="ifood" style="--x:5%;--y:10%">🥦</span>
+      <span class="ifood" style="--x:85%;--y:8%">🥑</span>
+      <span class="ifood" style="--x:10%;--y:55%">🌶️</span>
+      <span class="ifood" style="--x:80%;--y:60%">🥩</span>
+      <span class="ifood" style="--x:4%;--y:78%">🍎</span>
+      <span class="ifood" style="--x:88%;--y:80%">🍌</span>
+      <span class="ifood" style="--x:48%;--y:5%">🍚</span>
+      <span class="ifood" style="--x:55%;--y:88%">🍇</span>
+      <span class="ifood" style="--x:18%;--y:32%">🐟</span>
+      <span class="ifood" style="--x:75%;--y:30%">🥕</span>
+    </div>
+
+    <div class="intro-people">
+      <svg class="intro-helper" viewBox="0 0 180 280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M50 60 Q50 25 90 25 Q130 25 130 60 L130 80 Q130 90 120 90 L60 90 Q50 90 50 80 Z" fill="#5b3216" stroke="#000" stroke-width="3"/>
+        <ellipse cx="90" cy="85" rx="36" ry="42" fill="#fde2c4" stroke="#000" stroke-width="3"/>
+        <circle cx="78" cy="82" r="3" fill="#000"/>
+        <circle cx="102" cy="82" r="3" fill="#000"/>
+        <path d="M76 105 Q90 115 104 105" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M55 130 L55 220 L70 230 L70 270 L80 270 L80 230 L100 230 L100 270 L110 270 L110 230 L125 220 L125 130 Q125 120 115 120 L65 120 Q55 120 55 130" fill="#ffd84d" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M55 220 L125 220 L130 270 L50 270 Z" fill="#3a64b8" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+        <rect x="62" y="270" width="22" height="10" fill="#fff" stroke="#000" stroke-width="2"/>
+        <rect x="96" y="270" width="22" height="10" fill="#fff" stroke="#000" stroke-width="2"/>
+      </svg>
+
+      <div class="intro-cloud">
+        <div class="cloud-title">Не паникуй.</div>
+        <div class="cloud-body">Я тебе помогу и учту не только твои ограничения, но и твои пожелания и предпочтения, и конечно, наличие продуктов в твоём регионе.</div>
+        <div class="cloud-body">Но сначала нам надо подружиться. Давай познакомимся.</div>
+        <div class="cloud-body">И чтобы начать наш путь, нажми на кнопку <b>СТАРТ</b></div>
+      </div>
+
+      <svg class="intro-user" viewBox="0 0 180 280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M40 70 Q40 25 90 25 Q140 25 140 70 L145 180 Q145 190 135 192 L45 192 Q35 190 35 180 Z" fill="#6a3e1f" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+        <ellipse cx="90" cy="95" rx="38" ry="44" fill="#fde2c4" stroke="#000" stroke-width="3"/>
+        <circle cx="78" cy="92" r="3" fill="#000"/>
+        <circle cx="102" cy="92" r="3" fill="#000"/>
+        <path d="M76 112 Q90 108 104 112" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M55 135 L55 240 L75 250 L75 280 L85 280 L85 250 L95 250 L95 280 L105 280 L105 250 L125 240 L125 135 Q125 125 115 125 L65 125 Q55 125 55 135" fill="#2bb3a8" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M70 175 Q80 165 90 175 Q100 185 110 175" stroke="#1a8a82" stroke-width="2" fill="none"/>
+        <path d="M55 250 L125 250 L140 285 L40 285 Z" fill="#ec5b8a" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M75 145 Q90 165 75 180" stroke="#fde2c4" stroke-width="14" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div class="intro-q">?</div>
+    </div>
+
+    <button class="btn btn-start" id="intro-start">СТАРТ</button>
+  </div>
+</section>
+
+<!-- ============ ЭКРАН 3: Лендинг ============ -->
+<section class="screen screen-landing" id="screen-landing">
+  <header class="ld-header">
+    <div class="ld-logo">
+      <span class="ld-logo-leaf">🌿</span>
+      <span class="ld-logo-text">Ваш персональный помощник по питанию</span>
+    </div>
+    <nav class="ld-nav" aria-label="Навигация">
+      <a href="#how" data-nav>Как это работает</a>
+      <a href="#help" data-nav>Чем мы можем помочь</a>
+      <a href="#who" data-nav>Кому подойдет</a>
+      <a href="#reviews" data-nav>Отзывы</a>
+      <a href="#faq" data-nav>Вопросы и ответы</a>
+    </nav>
+    <button class="btn btn-primary ld-cta-top" data-go-app>Начать бесплатно</button>
+    <button class="ld-burger" id="ld-burger" aria-label="Меню">☰</button>
+  </header>
+
+  <section class="ld-hero">
+    <div class="ld-hero-text">
+      <h1>Персональное питание, продуманное для вас</h1>
+      <p class="ld-hero-p">Подбираем рацион с учётом здоровья, продуктов, которые уже есть дома, и рекомендаций врача. Экономьте время, деньги и заботьтесь о себе и близких.</p>
+      <ul class="ld-features">
+        <li><span class="ld-fi">🌿</span><span>Учитываем здоровье и рекомендации врача</span></li>
+        <li><span class="ld-fi">🍽️</span><span>Готовые блюда и рецепты</span></li>
+        <li><span class="ld-fi">🏠</span><span>Используем продукты, которые есть дома</span></li>
+        <li><span class="ld-fi">📅</span><span>Планируйте на день, неделю или больше</span></li>
+        <li><span class="ld-fi">🛒</span><span>Подсказываем, что купить в вашем магазине</span></li>
+        <li><span class="ld-fi">🛡️</span><span>Безопасно и конфиденциально</span></li>
+      </ul>
+      <div class="ld-cta-wrap">
+        <button class="btn btn-primary ld-cta-main" data-go-app>Начать бесплатно</button>
+        <div class="ld-cta-note">7 дней бесплатно • Без привязки карты</div>
+        <div class="ld-handwritten">Ответьте на несколько вопросов — остальное мы сделаем за вас ✏️</div>
+      </div>
+    </div>
+    <div class="ld-hero-visual" aria-hidden="true">
+      <div class="ld-phone">
+        <div class="ld-phone-notch"></div>
+        <div class="ld-phone-status"><span>9:41</span><span>📶 🔋</span></div>
+        <div class="ld-phone-content">
+          <div class="ld-ph-greet">Добрый вечер, <b>Айгуль</b>! <span class="ld-ph-star">⭐</span></div>
+          <div class="ld-ph-q">Что приготовить прямо сейчас?</div>
+          <div class="ld-ph-recipes">
+            <div class="ld-ph-recipe ld-ph-best">
+              <div class="ld-ph-rec-photo">🍗</div>
+              <div class="ld-ph-rec-info">
+                <div class="ld-ph-rec-name">Курица с брокколи и сыром</div>
+                <div class="ld-ph-rec-meta">25 мин • 520 ккал</div>
+              </div>
+              <div class="ld-ph-tag">Лучший вариант</div>
+            </div>
+            <div class="ld-ph-recipe">
+              <div class="ld-ph-rec-photo">🥣</div>
+              <div class="ld-ph-rec-info">
+                <div class="ld-ph-rec-name">Овсянка с ягодами</div>
+                <div class="ld-ph-rec-meta">10 мин • 290 ккал</div>
+              </div>
+              <div class="ld-ph-tag tag-h">⭐ Полезный</div>
+            </div>
+            <div class="ld-ph-recipe">
+              <div class="ld-ph-rec-photo">🍳</div>
+              <div class="ld-ph-rec-info">
+                <div class="ld-ph-rec-name">Омлет с овощами</div>
+                <div class="ld-ph-rec-meta">12 мин • 340 ккал</div>
+              </div>
+              <div class="ld-ph-tag tag-f">⚡ Быстрый</div>
+            </div>
+          </div>
+          <div class="ld-ph-bottomnav">
+            <span class="active">🏠<br><small>Главная</small></span>
+            <span>🥬<br><small>Продукты</small></span>
+            <span>📅<br><small>План</small></span>
+            <span>🛒<br><small>Покупки</small></span>
+            <span>👤<br><small>Профиль</small></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="ld-section" id="how">
+    <h2 class="ld-h2">Как это работает</h2>
+    <p class="ld-sub">Всего четыре простых шага до вашего персонального плана питания</p>
+    <p class="ld-text">Создайте профиль, расскажите о своём здоровье и предпочтениях, добавьте продукты, которые уже есть дома, и получите персональный план питания с рецептами, списком покупок и рекомендациями именно для вас.</p>
+    <div class="ld-steps">
+      <div class="ld-step">
+        <div class="ld-step-num">1</div>
+        <div class="ld-step-icon">👤</div>
+        <div class="ld-step-h">Создайте профиль</div>
+        <div class="ld-step-t">Укажите данные о себе и вашей семье</div>
+      </div>
+      <div class="ld-step">
+        <div class="ld-step-num">2</div>
+        <div class="ld-step-icon">❤️</div>
+        <div class="ld-step-h">Расскажите о здоровье и предпочтениях</div>
+        <div class="ld-step-t">Укажите рекомендации врача, аллергии, цели и вкусы</div>
+      </div>
+      <div class="ld-step">
+        <div class="ld-step-num">3</div>
+        <div class="ld-step-icon">🛒</div>
+        <div class="ld-step-h">Добавьте продукты дома</div>
+        <div class="ld-step-t">Вручную, фото или скан чека — мы учтём, что у вас есть</div>
+      </div>
+      <div class="ld-step">
+        <div class="ld-step-num">4</div>
+        <div class="ld-step-icon">🍽️</div>
+        <div class="ld-step-h">Получите персональный план</div>
+        <div class="ld-step-t">Блюда, рецепты и список покупок — всегда под рукой</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="ld-section ld-grey" id="help">
+    <h2 class="ld-h2">Чем мы можем помочь</h2>
+    <p class="ld-sub">Мы берём на себя ежедневные заботы о вашем питании</p>
+    <p class="ld-text">Наш сервис помогает сделать питание проще, удобнее и полезнее. Мы поможем вам:</p>
+    <div class="ld-help">
+      <div class="ld-help-card"><span>📅</span><b>Планирование питания</b></div>
+      <div class="ld-help-card"><span>👨‍👩‍👧</span><b>Для всей семьи</b></div>
+      <div class="ld-help-card"><span>❤️</span><b>Учёт здоровья и рекомендаций</b></div>
+      <div class="ld-help-card"><span>🛒</span><b>Список покупок автоматически</b></div>
+      <div class="ld-help-card"><span>🍴</span><b>Питание вне дома (ресторан, гости)</b></div>
+      <div class="ld-help-card"><span>🎤</span><b>Голосовой ввод и фото продуктов</b></div>
+      <div class="ld-help-card"><span>📄</span><b>Загрузка анализов и документов</b></div>
+      <div class="ld-help-card"><span>🔒</span><b>Безопасно и конфиденциально</b></div>
+    </div>
+    <p class="ld-text">Вы меньше думаете о том, что приготовить, а больше времени уделяете себе и своей семье.</p>
+  </section>
+
+  <section class="ld-section" id="who">
+    <h2 class="ld-h2">Кому подойдет</h2>
+    <p class="ld-sub">Сервис создан для людей с разными потребностями и образом жизни</p>
+    <p class="ld-text">Он особенно подойдёт:</p>
+    <div class="ld-who">
+      <div class="ld-who-card"><span class="ld-who-emo">❤️</span><b>Людям с хроническими заболеваниями</b><span>Питание с учётом диагноза и рекомендаций врача</span></div>
+      <div class="ld-who-card"><span class="ld-who-emo">👨‍👩‍👧</span><b>Семьям</b><span>Индивидуальные рекомендации для каждого члена семьи</span></div>
+      <div class="ld-who-card"><span class="ld-who-emo">💪</span><b>Спортсменам и активным людям</b><span>Сбалансированное питание для энергии и результата</span></div>
+      <div class="ld-who-card"><span class="ld-who-emo">🧓</span><b>Пожилым людям</b><span>Поддержка здоровья и энергии</span></div>
+      <div class="ld-who-card"><span class="ld-who-emo">🌿</span><b>Всем, кто хочет питаться правильно и с пользой</b><span>Экономия времени, денег и забота о себе</span></div>
+    </div>
+  </section>
+
+  <section class="ld-section ld-grey" id="reviews">
+    <h2 class="ld-h2">Отзывы наших пользователей</h2>
+    <p class="ld-sub">Истории людей, которым сервис уже помогает каждый день</p>
+    <p class="ld-text">Мы рады, что наши пользователи доверяют нам заботу о своём ежедневном питании. Их отзывы помогают нам развивать сервис и делать его ещё полезнее.</p>
+    <div class="ld-reviews">
+      <div class="ld-review">
+        <div class="ld-rev-head"><div class="ld-rev-avatar">А</div><div><b>Анна</b>, 34 года</div></div>
+        <div class="ld-stars">★★★★★</div>
+        <p>«Изменила свой подход к питанию. Меню разнообразное и вкусное, а я наконец перестала каждый день ломать голову «что приготовить». Рекомендую!»</p>
+      </div>
+      <div class="ld-review">
+        <div class="ld-rev-head"><div class="ld-rev-avatar">М</div><div><b>Мария</b>, 52 года</div></div>
+        <div class="ld-stars">★★★★★</div>
+        <p>«Очень радует, что сервис учитывает рекомендации врача и то, что уже есть дома. Экономит и время, и деньги. Спасибо!»</p>
+      </div>
+      <div class="ld-review">
+        <div class="ld-rev-head"><div class="ld-rev-avatar">И</div><div><b>Игорь</b>, 28 лет</div></div>
+        <div class="ld-stars">★★★★★</div>
+        <p>«Экономлю время и деньги, питаюсь правильно. Раньше на это уходили часы, теперь — пара минут. Очень удобно!»</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="ld-section" id="faq">
+    <h2 class="ld-h2">Остались вопросы?</h2>
+    <p class="ld-sub">Мы собрали ответы на самые частые вопросы</p>
+    <p class="ld-text">Здесь вы найдёте ответы о регистрации, бесплатном периоде, безопасности данных, работе с анализами, использовании сервиса всей семьёй и других возможностях.</p>
+    <button class="btn btn-primary ld-faq-btn" data-go-app>Перейти в приложение</button>
+  </section>
+
+  <footer class="ld-footer">
+    <div class="ld-footer-grid">
+      <div class="ld-foot-brand">
+        <div class="ld-logo"><span class="ld-logo-leaf">🌿</span><span>Ваш персональный помощник по питанию</span></div>
+        <div class="ld-social">
+          <a href="#" aria-label="Instagram">📷</a>
+          <a href="#" aria-label="VK">VK</a>
+          <a href="#" aria-label="YouTube">▶</a>
+          <a href="#" aria-label="Telegram">✈</a>
+        </div>
+      </div>
+      <div class="ld-foot-col">
+        <div class="ld-foot-h">О сервисе</div>
+        <a href="#how">О нас</a><a href="#help">Команда</a><a href="#who">Блог</a>
+      </div>
+      <div class="ld-foot-col">
+        <div class="ld-foot-h">Помощь</div>
+        <a href="#faq">Вопросы и ответы</a><a href="#faq">Поддержка</a><a href="#faq">Обратная связь</a>
+      </div>
+      <div class="ld-foot-col">
+        <div class="ld-foot-h">Документы</div>
+        <a href="#">Политика конфиденциальности</a><a href="#">Пользовательское соглашение</a>
+      </div>
+      <div class="ld-foot-cta">
+        <button class="btn btn-primary" data-go-app>Начать бесплатно</button>
+        <div class="ld-cta-note">7 дней бесплатно • Без привязки карты</div>
+      </div>
+    </div>
+    <div class="ld-copy">© 2026 Навигатор питания. Все права защищены.</div>
+  </footer>
+</section>
+
+<!-- ============ ЭКРАН 4: Личный кабинет ============ -->
+<section class="screen screen-app" id="screen-app">
+  <aside class="app-sidebar">
+    <div class="app-side-head">
+      <span class="ld-logo-leaf">🌿</span>
+      <span class="app-side-title">Ваш помощник<br>по питанию</span>
+    </div>
+    <nav class="app-side-nav" aria-label="Разделы">
+      <a href="#" class="app-nav-item active" data-screen="home"><span>🏠</span>Главная</a>
+      <a href="#" class="app-nav-item" data-screen="profile"><span>👤</span>Профиль</a>
+      <a href="#" class="app-nav-item" data-screen="products"><span>🥬</span>Продукты дома</a>
+      <a href="#" class="app-nav-item" data-screen="plan"><span>🍽️</span>План питания</a>
+      <a href="#" class="app-nav-item" data-screen="outside"><span>🍴</span>Вне дома</a>
+      <a href="#" class="app-nav-item" data-screen="shopping"><span>🛒</span>Покупки</a>
+      <a href="#" class="app-nav-item" data-screen="progress"><span>📈</span>Прогресс</a>
+      <a href="#" class="app-nav-item" data-screen="settings"><span>⚙️</span>Настройки</a>
+    </nav>
+    <div class="app-side-premium">
+      <div class="app-prem-icon">🎁</div>
+      <div class="app-prem-t"><b>Премиум</b><br><span>Расширенные возможности и персональные рекомендации</span></div>
+      <button class="btn btn-ghost-sm">Перейти</button>
+    </div>
+    <div class="app-side-help">
+      <span>🎧</span>
+      <div><b>Нужна помощь?</b><br><small>Напишите нам в поддержку</small></div>
+    </div>
+  </aside>
+
+  <main class="app-main" id="app-main">
+    <!-- Контент рендерится в app.js -->
+  </main>
+
+  <aside class="app-aside" id="app-aside">
+    <!-- Контент рендерится в app.js -->
+  </aside>
+
+  <button class="app-mobile-menu" id="app-mobile-menu" aria-label="Меню">☰</button>
+  <nav class="app-bottom-nav" aria-label="Мобильная навигация">
+    <a href="#" class="active" data-screen="home"><span>🏠</span><small>Главная</small></a>
+    <a href="#" data-screen="profile"><span>👤</span><small>Профиль</small></a>
+    <a href="#" data-screen="products"><span>🥬</span><small>Продукты</small></a>
+    <a href="#" data-screen="plan"><span>📅</span><small>План</small></a>
+    <a href="#" data-screen="shopping"><span>🛒</span><small>Покупки</small></a>
+  </nav>
+</section>
+
+<!-- ===== Универсальные модалки ===== -->
+<div class="modal-overlay" id="modal-overlay" hidden>
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script src="seed.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

@@ -1,11 +1,11 @@
 /* Навигатор питания — Service Worker (cache-first) */
-const CACHE = 'navpit-v2';
+const CACHE = 'navpit-v3';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=2',
-  './seed.js?v=2',
-  './app.js?v=2',
+  './styles.css?v=3',
+  './seed.js?v=3',
+  './app.js?v=3',
   './manifest.json',
   './assets/icon-192.svg',
   './assets/icon-512.svg'
