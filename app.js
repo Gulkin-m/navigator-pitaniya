@@ -1,475 +1,678 @@
-/* ===== Навигатор питания — логика ===== */
+/* Навигатор питания — приложение */
 (function(){
 'use strict';
 
-var KEY = 'navigator_data_v2';
+const STORAGE_KEY = 'navigator_data_v3';
+const SPLASH_KEY = 'navigator_splash_seen';
+const STATE = { current: 'splash', appScreen: 'home' };
 
-/* ---------- Хранилище ---------- */
 function load(){
-  try {
-    var raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e){}
-  var seed = (window.SEED_DATA ? JSON.parse(JSON.stringify(window.SEED_DATA)) : {});
-  localStorage.setItem(KEY, JSON.stringify(seed));
-  return seed;
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  if(window.SEED_DATA){ return JSON.parse(JSON.stringify(window.SEED_DATA)); }
+  return {
+    profile:{ name:'Айгуль', age:34, sex:'ж', height:165, weight:64, goal:'Поддержание', region:'Центральная Азия',
+      diagnosis:'Колит', stage:'ремиссия', allergies:'Нет', intolerance:'', forbidden:'', doctorRecs:'ограничить грубую клетчатку, жирное и острое',
+      bones:'норма', vitamins:'', micro:'', macro:'', family:[
+        {name:'Супруг',age:36,note:'без ограничений'},
+        {name:'Дочь',age:9,note:'аллергия на орехи'}
+      ]
+    },
+    products:[], plan:[], shopping:[], progress:{weights:[{d:'2026-06-01',w:65},{d:'2026-06-15',w:64},{d:'2026-07-01',w:63.5},{d:'2026-07-15',w:63}]}, settings:{reminders:true,voice:true}
+  };
 }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DATA)); }catch(e){} }
-var DATA = load();
+function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE.data)); }catch(e){} }
+STATE.data = load();
 
-/* ---------- Утилиты ---------- */
-function el(sel){ return document.querySelector(sel); }
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-function show(id){
-  ['screen-splash','screen-intro','screen-landing','screen-app'].forEach(function(s){
-    var n = document.getElementById(s); if(n) n.classList.remove('active');
-  });
-  var t = document.getElementById(id); if(t) t.classList.add('active');
+function go(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const t = document.getElementById('screen-'+name);
+  if(t) t.classList.add('active');
+  STATE.current = name;
   window.scrollTo(0,0);
-}
-function foodThumb(cat){
-  var map={protein:'#F3D9C0',dairy:'#EAF2FF',carb:'#F6E7C8',veg:'#E3F3DD',fruit:'#F8E1EC',fat:'#FBEFCB',nuts:'#EFE3D6'};
-  return map[cat]||'#E8F4EE';
+  if(name==='app') renderAppScreen();
 }
 
-/* SVG-иконка листа для логотипов */
-var LEAF='<svg class="leaf" viewBox="0 0 24 24" fill="none"><path d="M4 20C4 12 10 5 20 4c0 10-7 16-16 16z" fill="#2E7D5C"/><path d="M12 12c2-3 5-5 8-6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>';
-function icn(p){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'; }
-var ICONS={
-  home:icn('<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'),
-  user:icn('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'),
-  box:icn('<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/>'),
-  plan:icn('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'),
-  out:icn('<path d="M4 21V10l8-6 8 6v11"/><path d="M9 21v-6h6v6"/>'),
-  cart:icn('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/>'),
-  chart:icn('<path d="M4 20V4M4 20h16"/><path d="M8 16l3-4 3 2 4-6"/>'),
-  gear:icn('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'),
-  gift:icn('<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 12h18M12 8v13M8 8a2 2 0 110-4c2 0 4 4 4 4M16 8a2 2 0 100-4c-2 0-4 4-4 4"/>'),
-  help:icn('<path d="M4 14a8 8 0 1116 0"/><rect x="2" y="14" width="4" height="6" rx="1"/><rect x="18" y="14" width="4" height="6" rx="1"/>')
-};
-var NAV=[
-  {id:'home',t:'Главная',i:'home'},{id:'profile',t:'Профиль',i:'user'},
-  {id:'products',t:'Продукты дома',i:'box'},{id:'plan',t:'План питания',i:'plan'},
-  {id:'out',t:'Вне дома',i:'out'},{id:'shopping',t:'Покупки',i:'cart'},
-  {id:'progress',t:'Прогресс',i:'chart'},{id:'settings',t:'Настройки',i:'gear'}
-];
+document.getElementById('splash-go').addEventListener('click',()=>go('intro'));
+document.getElementById('screen-splash').addEventListener('click',e=>{
+  if(e.target.closest('.btn-splash')) return;
+  go('intro');
+});
+document.getElementById('intro-start').addEventListener('click',()=>go('landing'));
 
-/* ============================================================
-   ЭКРАН 3: ЛЕНДИНГ
-============================================================ */
-function renderLanding(){
-  var feats=[
-    ['Учитываем здоровье и рекомендации врача','<path d="M12 21s-7-4.3-9-9a5 5 0 019-3 5 5 0 019 3c-2 4.7-9 9-9 9z"/>'],
-    ['Готовые блюда и рецепты','<path d="M4 7h16M6 7v13h12V7M9 3v4M15 3v4"/>'],
-    ['Используем продукты, которые есть дома','<path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7"/>'],
-    ['Планируйте на день, неделю или больше','<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/>'],
-    ['Подсказываем, что купить в магазине','<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/>'],
-    ['Безопасно и конфиденциально','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/>']
-  ].map(function(f){return '<div class="feat"><span class="ic">'+icn(f[1])+'</span><span>'+f[0]+'</span></div>';}).join('');
+document.querySelectorAll('[data-go-app]').forEach(b=>b.addEventListener('click',()=>go('app')));
 
-  var steps=[
-    ['Создайте профиль','Укажите данные о себе и вашей семье'],
-    ['Расскажите о здоровье и предпочтениях','Укажите рекомендации врача, аллергии, цели и вкусы'],
-    ['Добавьте продукты дома','Вручную, фото или скан чека — мы учтём, что у вас есть'],
-    ['Получите персональный план','Блюда, рецепты и список покупок — всегда под рукой']
-  ].map(function(s,i){return '<div class="step"><div class="num">'+(i+1)+'</div><h3>'+s[0]+'</h3><p>'+s[1]+'</p></div>';}).join('');
-
-  var help=[
-    ['Планирование питания','На день, неделю или месяц вперёд','<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/>'],
-    ['Для всей семьи','Учитываем ограничения каждого','<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M15 20c0-2 2-3 4-3s2 1 2 3"/>'],
-    ['Учёт здоровья и рекомендаций','Диеты, аллергии, назначения врача','<path d="M12 21s-7-4.3-9-9a5 5 0 019-3 5 5 0 019 3c-2 4.7-9 9-9 9z"/>'],
-    ['Список покупок автоматически','Формируем из недостающих продуктов','<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/>'],
-    ['Питание вне дома','Подскажем в ресторане и в гостях','<path d="M4 3v18M4 3c3 0 3 5 0 5M8 3v6a3 3 0 01-3 3M18 3v18M18 12c3 0 3-9 0-9"/>'],
-    ['Голосовой ввод и фото продуктов','Добавляйте продукты быстро','<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0012 0M12 17v4"/>'],
-    ['Загрузка анализов и документов','Учтём ваши показатели','<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v5h5M9 13h6M9 17h6"/>']
-  ].map(function(h){return '<div class="help-card"><div class="ic">'+icn(h[2])+'</div><h3>'+h[0]+'</h3><p>'+h[1]+'</p></div>';}).join('');
-
-  var who=[
-    ['\u2764\uFE0F','Людям с хроническими заболеваниями'],
-    ['\uD83D\uDC6A','Семьям'],
-    ['\uD83C\uDFC3','Спортсменам и активным людям'],
-    ['\uD83D\uDC75','Пожилым людям'],
-    ['\uD83C\uDF4F','Всем, кто хочет питаться правильно и с пользой']
-  ].map(function(w){return '<div class="who-card"><div class="em">'+w[0]+'</div><p>'+w[1]+'</p></div>';}).join('');
-
-  var revs=[
-    ['Анна','34','Наконец-то не нужно каждый день думать, что приготовить. План учитывает мой гастрит — стало намного легче.'],
-    ['Мария','52','Готовлю на всю семью, у дочки аллергия на орехи. Приложение всё запомнило и подбирает безопасные блюда.'],
-    ['Игорь','28','Считаю БЖУ для тренировок. Удобно, что калории и белки уже посчитаны, а список покупок собирается сам.']
-  ].map(function(r){return '<div class="rev-card"><div class="rev-head"><div class="rev-avatar">'+r[0][0]+'</div><div><b>'+r[0]+'</b><small>'+r[1]+' года</small></div></div><div class="stars">\u2605\u2605\u2605\u2605\u2605</div><p>'+r[2]+'</p></div>';}).join('');
-
-  var phone='<div class="phone"><div class="phone-screen">'+
-    '<div class="phone-top"><small>Добрый вечер!</small><h4>Что приготовить сейчас?</h4></div>'+
-    '<div class="phone-body">'+
-      '<div class="mini-card"><div class="thumb" style="background:'+foodThumb('protein')+'"></div><b>Курица с брокколи</b>'+
-        '<div class="mini-macros"><span>25 мин</span><span>520 ккал</span><span>Б42</span><span>Ж24</span><span>У18</span></div></div>'+
-      '<div class="mini-card"><div class="thumb" style="background:'+foodThumb('carb')+'"></div><b>Овсянка с ягодами</b>'+
-        '<div class="mini-macros"><span>10 мин</span><span>290 ккал</span></div></div>'+
-    '</div></div></div>';
-
-  el('#screen-landing').innerHTML =
-  '<header class="lp-header">'+
-    '<div class="lp-logo">'+LEAF+'<span>Ваш персональный помощник по питанию</span></div>'+
-    '<nav class="lp-nav">'+
-      '<a href="#how">Как это работает</a><a href="#help">Чем мы можем помочь</a>'+
-      '<a href="#who">Кому подойдёт</a><a href="#rev">Отзывы</a><a href="#faq">Вопросы и ответы</a>'+
-    '</nav>'+
-    '<button class="btn btn-green btn-sm js-open-app">Начать бесплатно</button>'+
-  '</header>'+
-
-  '<div class="lp-hero">'+
-    '<div>'+
-      '<h1>Персональное питание, продуманное для вас</h1>'+
-      '<p class="lead">Мы подбираем рацион с учётом вашего здоровья, продуктов дома и рекомендаций врача. Экономим ваше время и заботимся о всей семье.</p>'+
-      '<div class="feat-grid">'+feats+'</div>'+
-      '<button class="btn btn-green js-open-app">Начать бесплатно</button>'+
-      '<div class="cta-sub">7 дней бесплатно • Без привязки карты</div>'+
-      '<div class="cta-note"><span class="note-sticker">Ответьте на несколько вопросов — остальное мы сделаем за вас.</span></div>'+
-    '</div>'+
-    '<div>'+phone+'</div>'+
-  '</div>'+
-
-  '<section class="lp-section" id="how"><h2>Как это работает</h2><p class="sub">Всего четыре простых шага</p><div class="steps">'+steps+'</div></section>'+
-  '<section class="lp-section" id="help" style="background:#fff"><h2>Чем мы можем помочь</h2><p class="sub">Всё для удобного и полезного питания</p><div class="help-grid">'+help+'</div></section>'+
-  '<section class="lp-section" id="who"><h2>Кому подойдёт</h2><p class="sub">Мы помогаем разным людям</p><div class="who-grid">'+who+'</div></section>'+
-  '<section class="lp-section" id="rev" style="background:#fff"><h2>Отзывы наших пользователей</h2><p class="sub">Нам доверяют</p><div class="rev-grid">'+revs+'</div></section>'+
-  '<section class="lp-section" id="faq"><div class="faq-cta"><h2>Остались вопросы?</h2><p class="sub" style="margin:8px 0 20px">Мы собрали ответы на самые частые вопросы</p><button class="btn btn-green js-open-app">Перейти в вопросы и ответы</button></div></section>'+
-
-  '<footer class="lp-footer">'+
-    '<div class="footer-top">'+
-      '<div><div class="lp-logo" style="color:#fff">'+LEAF+'<span>Помощник по питанию</span></div>'+
-        '<div class="socials"><span>IG</span><span>VK</span><span>YT</span><span>TG</span></div></div>'+
-      '<div><h4>О сервисе</h4><a href="#">О нас</a><a href="#">Команда</a><a href="#">Блог</a></div>'+
-      '<div><h4>Помощь</h4><a href="#">Вопросы и ответы</a><a href="#">Поддержка</a><a href="#">Обратная связь</a></div>'+
-      '<div><h4>Документы</h4><a href="#">Политика конфиденциальности</a><a href="#">Пользовательское соглашение</a></div>'+
-      '<div><h4>Начните сейчас</h4><button class="btn btn-green btn-sm js-open-app">Начать бесплатно</button><div class="cta-sub" style="color:#9fb6ac">7 дней бесплатно • Без привязки карты</div></div>'+
-    '</div>'+
-    '<div class="footer-bottom">© 2024 Ваш персональный помощник по питанию. Все права защищены.</div>'+
-  '</footer>';
-
-  Array.prototype.forEach.call(document.querySelectorAll('.js-open-app'),function(b){
-    b.addEventListener('click',function(){ openApp(); });
-  });
-}
-
-/* ============================================================
-   ЭКРАН 4: ЛИЧНЫЙ КАБИНЕТ
-============================================================ */
-var CUR='home';
-function openApp(){ show('screen-app'); renderApp(); }
-
-function renderApp(){
-  var nav = NAV.map(function(n){
-    return '<button class="nav-item'+(n.id===CUR?' active':'')+'" data-nav="'+n.id+'"><span class="ic">'+ICONS[n.i]+'</span>'+n.t+'</button>';
-  }).join('');
-  var mob = [['home','Главная','home'],['profile','Профиль','user'],['products','Продукты','box'],['plan','План','plan'],['shopping','Покупки','cart']]
-    .map(function(m){return '<button class="mn-item'+(m[0]===CUR?' active':'')+'" data-nav="'+m[0]+'"><span class="ic">'+ICONS[m[2]]+'</span>'+m[1]+'</button>';}).join('');
-
-  el('#screen-app').innerHTML =
-  '<div class="app-shell">'+
-    '<aside class="side">'+
-      '<div class="side-title">'+LEAF+'Ваш помощник по питанию</div>'+
-      nav+
-      '<div class="side-promo"><b>'+ICONS.gift+' Премиум</b><p>Расширенные возможности и персональные рекомендации</p><button class="btn btn-sm" style="background:#fff;color:var(--green)">Перейти</button></div>'+
-      '<div class="side-help"><b>'+ICONS.help+' Нужна помощь?</b>Напишите нам в поддержку</div>'+
-    '</aside>'+
-    '<main class="main" id="app-main"></main>'+
-    '<aside class="aside" id="app-aside"></aside>'+
-  '</div>'+
-  '<nav class="mobile-nav">'+mob+'</nav>';
-
-  Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'),function(b){
-    b.addEventListener('click',function(){ CUR=b.getAttribute('data-nav'); renderApp(); });
-  });
-  renderMain();
-}
-
-function avatarLetter(){ return (DATA.profile.name||'?').trim().charAt(0).toUpperCase(); }
-function topBar(){
-  return '<div class="main-top"><div class="greet">Личный кабинет</div>'+
-    '<div class="user-badge"><span>'+esc(DATA.profile.name)+'</span><div class="avatar">'+avatarLetter()+'</div></div></div>';
-}
-
-function renderMain(){
-  var m = el('#app-main'), a = el('#app-aside');
-  a.innerHTML=''; a.classList.remove('show');
-  var fn = {home:paneHome,profile:paneProfile,products:paneProducts,plan:panePlan,out:paneOut,shopping:paneShopping,progress:paneProgress,settings:paneSettings}[CUR];
-  m.innerHTML = topBar() + fn(a);
-  bindPane();
-}
-
-/* ---- Главная ---- */
-var TAGS={ready:['\u2705','Можно приготовить сейчас'],healthy:['\u2B50','Самый полезный'],fast:['\u26A1','Самый быстрый'],cheap:['\uD83D\uDCB0','Самый экономичный'],favorite:['\u2764\uFE0F','Любимый']};
-function dishCard(d){
-  var t=TAGS[d.tag]||['',''];
-  return '<div class="dish-card"><div class="dish-thumb" style="background:'+foodThumb('protein')+'">'+
-    '<span class="dish-tag">'+t[0]+' '+t[1]+'</span></div>'+
-    '<div class="dish-body"><h4>'+esc(d.name)+'</h4>'+
-    '<div class="dish-meta">'+d.time+' мин • '+d.kcal+' ккал</div>'+
-    '<div class="macros"><span>Б: '+d.p+' г</span><span>Ж: '+d.f+' г</span><span>У: '+d.c+' г</span></div>'+
-    (d.note?'<div class="dish-note">'+esc(d.note)+'</div>':'')+'</div></div>';
-}
-function paneHome(aside){
-  var hour=new Date().getHours();
-  var greet=hour<6?'Доброй ночи':hour<12?'Доброе утро':hour<18?'Добрый день':'Добрый вечер';
-  var dishes=DATA.dishes.map(dishCard).join('');
-  var stock=DATA.products.slice(0,6).map(function(p){
-    return '<div class="stock-chip">'+esc(p.name)+' <span class="q">'+esc(p.qty)+'</span></div>';}).join('');
-  var miss=DATA.missing.map(function(p){
-    return '<div class="stock-chip miss">'+esc(p.name)+' <span class="q">'+esc(p.qty)+'</span></div>';}).join('');
-
-  /* правый сайдбар */
-  var meals=[['breakfast','Завтрак'],['lunch','Обед'],['dinner','Ужин'],['snack','Перекус']].map(function(mm){
-    var p=DATA.plan[mm[0]];
-    return '<div class="meal'+(p.done?' done':'')+'" data-meal="'+mm[0]+'"><span class="chk">'+(p.done?'\u2713':'')+'</span>'+
-      '<div><b>'+mm[1]+'</b><small>'+esc(p.name)+'</small></div></div>';
-  }).join('');
-  var s=DATA.summary, g=DATA.profile;
-  var pct=Math.min(100,Math.round(s.kcal/g.goalKcal*100));
-  aside.classList.add('show');
-  aside.innerHTML=
-    '<div><h3>Ваш план на сегодня</h3>'+meals+
-      '<button class="btn btn-ghost btn-block btn-sm" style="margin-top:12px" data-nav="plan">Открыть план</button></div>'+
-    '<div style="margin-top:26px"><h3>Дневная сводка</h3>'+
-      '<div class="greet" style="margin-bottom:8px">Цель: '+g.goalKcal+' ккал</div>'+
-      '<div class="ring-wrap">'+ringSvg(pct)+'<div><b style="font-size:20px">'+s.kcal+' / '+g.goalKcal+'</b><div class="greet">ккал</div></div></div>'+
-      '<div class="bars">'+
-        bar('Белки',s.protein,g.goalProtein,'p')+bar('Жиры',s.fat,g.goalFat,'f')+bar('Углеводы',s.carb,g.goalCarb,'c')+
-      '</div>'+
-      '<button class="btn btn-gray btn-block btn-sm" style="margin-top:10px" data-nav="progress">Подробнее</button></div>';
-
-  return '<h2 class="section-title">'+greet+', '+esc(g.name)+'! \u2B50</h2>'+
-    '<h3 style="margin-bottom:12px">Что приготовить прямо сейчас?</h3>'+
-    '<div class="h-scroll">'+dishes+'</div>'+
-    '<button class="btn btn-gray btn-sm" style="margin-top:10px">Показать ещё варианты</button>'+
-    '<div class="card"><h3>У вас есть</h3><div class="chips">'+stock+'</div>'+
-      '<button class="btn btn-ghost btn-sm" style="margin-top:12px" data-nav="products">Показать все</button></div>'+
-    '<div class="card"><h3>Не хватает</h3><div class="chips">'+miss+'</div>'+
-      '<button class="btn btn-green btn-sm" style="margin-top:12px" id="add-all-shop">Добавить всё в список покупок</button></div>'+
-    '<div class="actions-row">'+
-      '<button class="btn btn-green">Приготовить это блюдо</button>'+
-      '<button class="btn btn-gray">\uD83C\uDFA4 Голосовой ввод</button>'+
-      '<button class="btn btn-gray">\uD83D\uDCF7 Фото продуктов</button>'+
-    '</div>';
-}
-function ringSvg(pct){
-  var r=26,c=2*Math.PI*r,off=c*(1-pct/100);
-  return '<svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="36" r="'+r+'" fill="none" stroke="#E4EAE7" stroke-width="8"/>'+
-    '<circle cx="36" cy="36" r="'+r+'" fill="none" stroke="#2E7D5C" stroke-width="8" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" transform="rotate(-90 36 36)"/>'+
-    '<text x="36" y="41" text-anchor="middle" font-size="15" font-weight="800" fill="#2E7D5C">'+pct+'%</text></svg>';
-}
-function bar(lbl,val,goal,cls){
-  var pct=Math.min(100,Math.round(val/goal*100));
-  return '<div class="bar-row"><div class="lbl"><span>'+lbl+'</span><span>'+val+' / '+goal+' г</span></div>'+
-    '<div class="bar '+cls+'"><i style="width:'+pct+'%"></i></div></div>';
-}
-
-/* ---- Профиль ---- */
-function acc(title,body,open){
-  return '<div class="accordion'+(open?' open':'')+'"><button class="acc-head js-acc">'+title+'<span>+</span></button><div class="acc-body">'+body+'</div></div>';
-}
-function paneProfile(){
-  var p=DATA.profile;
-  return '<div class="card" style="margin-top:0"><div style="display:flex;gap:16px;align-items:center">'+
-      '<div class="avatar" style="width:64px;height:64px;font-size:26px">'+avatarLetter()+'</div>'+
-      '<div style="flex:1"><h2 style="font-size:22px">'+esc(p.name)+'</h2><div class="greet">'+p.age+' года, '+esc(p.sex)+'</div></div>'+
-      '<button class="btn btn-ghost btn-sm" id="edit-profile">Редактировать</button></div>'+
-      '<div style="margin-top:16px"><div class="greet">Профиль заполнен на '+p.completion+'%</div>'+
-      '<div class="progress-bar"><i style="width:'+p.completion+'%"></i></div></div></div>'+
-    '<div style="margin-top:14px">'+
-      acc('Основные данные','Имя: '+esc(p.name)+'<br>Возраст: '+p.age+'<br>Пол: '+esc(p.sex)+'<br>Цель по калориям: '+p.goalKcal+' ккал',true)+
-      acc('Здоровье',esc(p.health))+
-      acc('Анализы','Загруженных документов пока нет. Здесь появятся ваши анализы и показатели.')+
-      acc('Предпочтения',esc(p.prefs))+
-      acc('Семья',esc(p.family))+
-    '</div>';
-}
-
-/* ---- Продукты дома ---- */
-function paneProducts(){
-  var chips=['Вручную','Голосом','Фото','Штрихкод','Чек'].map(function(c){return '<span class="pill">'+c+'</span>';}).join('');
-  var rows=DATA.products.map(function(p){
-    var days=p.days<=1?'<span class="warn">'+p.days+' день</span>':p.days+' дн.';
-    return '<div class="list-row"><div class="ava">'+esc(p.name.charAt(0))+'</div>'+
-      '<div><b>'+esc(p.name)+'</b><small>'+esc(p.qty)+' • осталось '+days+'</small></div></div>';
-  }).join('');
-  return '<h2 class="section-title">Продукты дома</h2>'+
-    '<button class="btn btn-green">+ Добавить</button>'+
-    '<div class="chips" style="margin:14px 0">'+chips+'</div>'+
-    rows+
-    '<button class="btn btn-gray btn-sm" style="margin-top:8px">Показать все продукты ('+DATA.products.length+')</button>';
-}
-
-/* ---- План питания ---- */
-function panePlan(){
-  var per=['День','2 дня','3 дня','Неделя','Месяц'].map(function(t,i){return '<span class="tab'+(i===0?' active':'')+'">'+t+'</span>';}).join('');
-  var meals=['Завтрак','Обед','Ужин','Перекусы'].map(function(t,i){return '<span class="tab'+(i===2?' active':'')+'">'+t+'</span>';}).join('');
-  var d=DATA.dishes[5]||DATA.dishes[0];
-  var s=DATA.summary,g=DATA.profile;
-  return '<h2 class="section-title">План питания</h2>'+
-    '<div class="tabs">'+per+'</div><div class="tabs">'+meals+'</div>'+
-    dishCard(d)+
-    '<div class="actions-row"><button class="btn btn-ghost">Заменить блюдо</button><button class="btn btn-gray">Заменить ингредиенты</button></div>'+
-    '<div class="card"><h3>Дневная сводка</h3><div class="greet">'+s.kcal+' / '+g.goalKcal+' ккал</div>'+
-      '<div class="bars" style="margin-top:10px">'+bar('Белки',s.protein,g.goalProtein,'p')+bar('Жиры',s.fat,g.goalFat,'f')+bar('Углеводы',s.carb,g.goalCarb,'c')+'</div></div>';
-}
-
-/* ---- Вне дома ---- */
-function paneOut(){
-  var good=['Куриная грудка на гриле','Овощи на пару','Рыба запечённая','Салат без острой заправки'].map(function(x){return '<li>'+x+'</li>';}).join('');
-  var bad=['Жареное и жирное','Острые соусы','Свежая капуста и бобовые','Газированные напитки'].map(function(x){return '<li>'+x+'</li>';}).join('');
-  return '<h2 class="section-title">Вне дома</h2>'+
-    '<div class="tabs"><span class="tab active" data-out="rest">Ресторан</span><span class="tab" data-out="guest">В гостях</span></div>'+
-    '<div id="out-rest">'+
-      '<div class="card" style="margin-top:0"><h3>Ресторан Green Garden</h3>'+
-        '<div class="actions-row"><button class="btn btn-gray btn-sm">Меню</button><button class="btn btn-gray btn-sm">Ссылка</button><button class="btn btn-gray btn-sm">Фото меню</button></div></div>'+
-      '<div class="card"><h3>Рекомендации AI</h3><div class="two-col">'+
-        '<div><b style="color:var(--green)">Рекомендуем</b><ul class="rec-list good">'+good+'</ul></div>'+
-        '<div><b style="color:var(--red)">Избегать</b><ul class="rec-list bad">'+bad+'</ul></div></div>'+
-        '<button class="btn btn-green btn-sm" style="margin-top:12px">Задать вопрос AI</button></div>'+
-    '</div>'+
-    '<div id="out-guest" style="display:none"><div class="card" style="margin-top:0"><h3>В гостях</h3>'+
-      '<textarea rows="3" placeholder="Опишите меню словами или голосом..."></textarea>'+
-      '<button class="btn btn-green btn-sm" style="margin-top:12px">Получить рекомендации</button></div></div>';
-}
-
-/* ---- Покупки ---- */
-function paneShopping(){
-  var spent=DATA.shopping.filter(function(x){return x.done;}).reduce(function(a,b){return a+b.price;},0);
-  var left=DATA.budget-spent;
-  var doneN=DATA.shopping.filter(function(x){return x.done;}).length;
-  var rows=DATA.shopping.map(function(s){
-    return '<div class="list-row"><div class="chk-box'+(s.done?' on':'')+'" data-shop="'+s.id+'">'+(s.done?'\u2713':'')+'</div>'+
-      '<div><b>'+esc(s.name)+'</b><small>'+esc(s.qty)+' • '+esc(s.dept)+'</small></div>'+
-      '<div class="right"><b>'+s.price+' \u20BD</b></div></div>';
-  }).join('');
-  return '<h2 class="section-title">Покупки</h2>'+
-    '<button class="btn btn-green">+ Добавить</button>'+
-    '<div class="tabs" style="margin-top:14px"><span class="tab active">Список</span><span class="tab">По отделам</span></div>'+
-    rows+
-    '<div class="card"><div style="display:flex;justify-content:space-between"><span>Бюджет</span><b>'+DATA.budget+' \u20BD</b></div>'+
-      '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Остаток</span><b style="color:'+(left<0?'var(--red)':'var(--green)')+'">'+left+' \u20BD</b></div></div>'+
-    '<button class="btn btn-green btn-block" style="margin-top:12px">Отметить купленные ('+doneN+')</button>';
-}
-
-/* ---- Прогресс ---- */
-function paneProgress(){
-  var w=DATA.progress.weight;
-  var hist=DATA.progress.history.map(function(h){
-    return '<div style="margin-bottom:10px"><div class="lbl" style="display:flex;justify-content:space-between;font-size:13px"><span>'+h.week+'</span><span>'+h.pct+'%</span></div>'+
-      '<div class="progress-bar"><i style="width:'+h.pct+'%"></i></div></div>';
-  }).join('');
-  return '<h2 class="section-title">Прогресс</h2>'+
-    '<div class="tabs"><span class="tab active">Вес</span><span class="tab">Анализы</span><span class="tab">Дефициты</span></div>'+
-    '<div class="chart">'+weightChart(w)+'</div>'+
-    '<div class="card"><h3>История планов</h3>'+hist+
-      '<button class="btn btn-ghost btn-sm">Посмотреть все</button></div>';
-}
-function weightChart(w){
-  var W=560,H=180,pad=30;
-  var vals=w.map(function(p){return p.kg;});
-  var min=Math.min.apply(null,vals)-0.5,max=Math.max.apply(null,vals)+0.5;
-  var pts=w.map(function(p,i){
-    var x=pad+(W-2*pad)*(i/(w.length-1));
-    var y=pad+(H-2*pad)*(1-(p.kg-min)/(max-min));
-    return [x,y];
-  });
-  var poly=pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
-  var dots=pts.map(function(p,i){return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4" fill="#2E7D5C"/>'+
-    '<text x="'+p[0].toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#6B7A72">'+w[i].date+'</text>';}).join('');
-  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%"><polyline points="'+poly+'" fill="none" stroke="#2E7D5C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+dots+'</svg>';
-}
-
-/* ---- Настройки ---- */
-function paneSettings(){
-  var s=DATA.settings;
-  return '<h2 class="section-title">Настройки</h2>'+
-    '<div class="card" style="margin-top:0"><div class="list-row" style="box-shadow:none;margin:0"><div><b>Напоминания о приёмах пищи</b><small>Мягкие подсказки в течение дня</small></div>'+
-      '<div class="right"><button class="btn '+(s.reminders?'btn-green':'btn-gray')+' btn-sm" id="toggle-rem">'+(s.reminders?'Включены':'Выключены')+'</button></div></div></div>'+
-    '<div class="card"><b>Данные приложения</b><p class="greet" style="margin:8px 0">Все ваши данные хранятся только на этом устройстве. Ничего не отправляется на сервер.</p>'+
-      '<button class="btn btn-gray btn-sm" id="reset-data">Сбросить демо-данные</button></div>'+
-    '<div class="card"><b>О приложении</b><p class="greet" style="margin-top:8px">Навигатор питания • версия 2.0<br>Работает офлайн как PWA.</p></div>';
-}
-
-/* ---------- Обработчики внутри разделов ---------- */
-function bindPane(){
-  Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'),function(b){
-    if(b.__b) return; b.__b=1;
-    b.addEventListener('click',function(){ CUR=b.getAttribute('data-nav'); renderApp(); });
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('.js-acc'),function(b){
-    b.addEventListener('click',function(){
-      var box=b.parentElement; box.classList.toggle('open');
-      b.querySelector('span').textContent=box.classList.contains('open')?'\u2212':'+';
-    });
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('[data-meal]'),function(b){
-    b.addEventListener('click',function(){
-      var k=b.getAttribute('data-meal'); DATA.plan[k].done=!DATA.plan[k].done; save(); renderMain();
-    });
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('[data-shop]'),function(b){
-    b.addEventListener('click',function(){
-      var id=b.getAttribute('data-shop');
-      DATA.shopping.forEach(function(s){ if(s.id===id) s.done=!s.done; });
-      save(); renderMain();
-    });
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('[data-out]'),function(b){
-    b.addEventListener('click',function(){
-      var v=b.getAttribute('data-out');
-      Array.prototype.forEach.call(document.querySelectorAll('[data-out]'),function(x){x.classList.remove('active');});
-      b.classList.add('active');
-      el('#out-rest').style.display=v==='rest'?'block':'none';
-      el('#out-guest').style.display=v==='guest'?'block':'none';
-    });
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('.tabs .tab:not([data-out])'),function(b){
-    b.addEventListener('click',function(){
-      var sib=b.parentElement.querySelectorAll('.tab');
-      Array.prototype.forEach.call(sib,function(x){x.classList.remove('active');});
-      b.classList.add('active');
-    });
-  });
-  var addAll=el('#add-all-shop');
-  if(addAll) addAll.addEventListener('click',function(){
-    DATA.missing.forEach(function(m){
-      if(!DATA.shopping.some(function(s){return s.name===m.name;}))
-        DATA.shopping.push({id:'x'+Date.now()+Math.random().toString(36).slice(2,5),name:m.name,qty:m.qty,price:0,dept:'Прочее',done:false});
-    });
-    save(); addAll.textContent='Добавлено!'; addAll.disabled=true;
-  });
-  var edit=el('#edit-profile');
-  if(edit) edit.addEventListener('click',function(){
-    var name=prompt('Ваше имя:',DATA.profile.name);
-    if(name){ DATA.profile.name=name.trim(); save(); renderMain(); }
-  });
-  var rem=el('#toggle-rem');
-  if(rem) rem.addEventListener('click',function(){ DATA.settings.reminders=!DATA.settings.reminders; save(); renderMain(); });
-  var reset=el('#reset-data');
-  if(reset) reset.addEventListener('click',function(){
-    if(confirm('Сбросить все данные и вернуть демо-версию?')){
-      localStorage.removeItem(KEY); DATA=load(); CUR='home'; renderApp();
+document.querySelectorAll('.ld-nav a').forEach(a=>{
+  a.addEventListener('click',e=>{
+    const href = a.getAttribute('href');
+    if(href && href.startsWith('#')){
+      e.preventDefault();
+      const t = document.querySelector(href);
+      if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
+      document.querySelectorAll('.ld-nav a').forEach(x=>x.classList.remove('active'));
+      a.classList.add('active');
+      document.querySelector('.ld-nav').classList.remove('open');
     }
   });
+});
+
+const burger = document.getElementById('ld-burger');
+if(burger) burger.addEventListener('click',()=>{
+  document.querySelector('.ld-nav').classList.toggle('open');
+});
+
+function renderAppScreen(){
+  renderApp(STATE.appScreen);
 }
 
-/* ============================================================
-   РОУТЕР ЭКРАНОВ 1-2
-============================================================ */
-document.addEventListener('DOMContentLoaded',function(){
-  renderLanding();
+function renderApp(name){
+  STATE.appScreen = name;
+  document.querySelectorAll('.app-nav-item').forEach(a=>{
+    a.classList.toggle('active', a.dataset.screen===name);
+  });
+  document.querySelectorAll('.app-bottom-nav a').forEach(a=>{
+    a.classList.toggle('active', a.dataset.screen===name);
+  });
+  const main = document.getElementById('app-main');
+  const aside = document.getElementById('app-aside');
+  let html='', asideHtml='';
+  switch(name){
+    case 'home': [html,asideHtml] = viewHome(); break;
+    case 'profile': [html,asideHtml] = viewProfile(); break;
+    case 'products': [html,asideHtml] = viewProducts(); break;
+    case 'plan': [html,asideHtml] = viewPlan(); break;
+    case 'outside': [html,asideHtml] = viewOutside(); break;
+    case 'shopping': [html,asideHtml] = viewShopping(); break;
+    case 'progress': [html,asideHtml] = viewProgress(); break;
+    case 'settings': [html,asideHtml] = viewSettings(); break;
+    default: html = '<div class="section-card">Раздел в разработке</div>';
+  }
+  main.innerHTML = html;
+  if(window.innerWidth>1024) aside.innerHTML = asideHtml;
+  else aside.innerHTML = '';
+  bindAppEvents(name);
+}
 
-  var splash=el('#screen-splash');
-  var goIntro=function(){ show('screen-intro'); };
-  var timer=setTimeout(goIntro,5000);
-  el('#splash-go').addEventListener('click',function(e){ e.stopPropagation(); clearTimeout(timer); goIntro(); });
-  splash.addEventListener('click',function(){ clearTimeout(timer); goIntro(); });
+function greet(){
+  const h = new Date().getHours();
+  if(h<6) return 'Доброй ночи';
+  if(h<11) return 'Доброе утро';
+  if(h<17) return 'Добрый день';
+  return 'Добрый вечер';
+}
+function userName(){
+  const n = STATE.data.profile && STATE.data.profile.name;
+  return n ? n : 'друг';
+}
 
-  el('#intro-start').addEventListener('click',function(){ show('screen-landing'); });
+function viewHome(){
+  const seedDishes = window.SEED_DATA && window.SEED_DATA.dishes || defaultDishes();
+  const seedHave = window.SEED_DATA && window.SEED_DATA.products || defaultHave();
+  const seedMiss = window.SEED_DATA && window.SEED_DATA.missing || defaultMiss();
+  const goal = 1600;
+  const tot = (window.SEED_DATA && window.SEED_DATA.today) || {kcal:1200, p:72, f:45, c:140};
 
-  /* Быстрый вход: если пользователь уже знакомился — открывать ЛК по хэшу */
-  if(location.hash==='#app'){ openApp(); }
-});
+  let html = `
+    <div class="app-page-head">
+      <div class="home-greet">${greet()}, <b>${escapeHtml(userName())}</b>! <span class="star">⭐</span></div>
+      <div class="home-q">Что приготовить прямо сейчас?</div>
+    </div>
+    <div class="section-card">
+      <h3>Рецепты для вас</h3>
+      <div class="recipe-row" id="recipe-row">
+        ${seedDishes.map((d,i)=>recipeCard(d,i===0)).join('')}
+      </div>
+      <button class="btn-more" id="more-recipes">Показать ещё варианты ▾</button>
+    </div>
+    <div class="section-card">
+      <h3>У вас есть</h3>
+      <div class="ing-list">
+        ${seedHave.map(h=>`<span class="ing-chip"><span class="ic">${h.emoji||'🥗'}</span>${escapeHtml(h.name)} ${h.qty}</span>`).join('')}
+        <button class="ing-chip" style="background:#fff;border:1.5px dashed var(--l2);color:var(--t2)">+ Показать все</button>
+      </div>
+    </div>
+    <div class="section-card">
+      <h3>Не хватает</h3>
+      <div class="ing-list">
+        ${seedMiss.map(h=>`<span class="ing-chip miss"><span class="ic">${h.emoji||'🛒'}</span>${escapeHtml(h.name)} ${h.qty}</span>`).join('')}
+      </div>
+      <button class="btn btn-primary home-actions" style="margin-top:12px" id="add-miss">🛒 Добавить всё в список покупок</button>
+    </div>
+    <div class="home-actions">
+      <button class="btn btn-primary" id="cook-this">👩‍🍳 Приготовить это блюдо</button>
+      <button class="btn btn-light" id="voice-btn">🎤 Голосовой ввод</button>
+      <button class="btn btn-light" id="photo-btn">📷 Фото продуктов</button>
+    </div>
+  `;
+
+  const circ = 2*Math.PI*54;
+  const off = circ*(1-Math.min(1,tot.kcal/goal));
+  const asideHtml = `
+    <div class="aside-card">
+      <h4>Ваш план на сегодня</h4>
+      <ul class="meal-list">
+        <li><span class="meal-check done"></span>Завтрак: Овсянка с ягодами</li>
+        <li><span class="meal-check done"></span>Обед: Куриный суп с овощами</li>
+        <li><span class="meal-check"></span>Ужин: Лосось с брокколи и киноа</li>
+        <li><span class="meal-check"></span>Перекус: Йогурт с орехами</li>
+      </ul>
+      <button class="btn btn-primary btn-block" data-go-plan>Открыть план</button>
+    </div>
+    <div class="aside-card">
+      <h4>Дневная сводка</h4>
+      <div class="summary-goal">Цель: ${goal} ккал</div>
+      <div class="summary-ring">
+        <svg width="130" height="130">
+          <circle class="summary-ring-bg" cx="65" cy="65" r="54"></circle>
+          <circle class="summary-ring-fg" cx="65" cy="65" r="54"
+            stroke-dasharray="${circ}" stroke-dashoffset="${off}"></circle>
+        </svg>
+        <div class="summary-ring-text"><b>${tot.kcal}</b><span>из ${goal} ккал</span></div>
+      </div>
+      ${macroBar('Белки',tot.p,100)}
+      ${macroBar('Жиры',tot.f,60)}
+      ${macroBar('Углеводы',tot.c,200)}
+      <button class="btn btn-primary btn-block" style="margin-top:12px">Подробнее</button>
+    </div>
+  `;
+  return [html, asideHtml];
+}
+
+function macroBar(label,cur,max){
+  const pct = Math.min(100, Math.round(cur/max*100));
+  return `<div class="macro-row">
+    <div class="macro-label"><span>${label}</span><span>${cur} / ${max} г</span></div>
+    <div class="macro-bar"><div class="macro-bar-fill" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+function recipeCard(d,best){
+  const tagMap = {
+    ready:['tag-ready','✅ Можно приготовить'],
+    healthy:['tag-healthy','⭐ Самый полезный'],
+    fast:['tag-fast','⚡ Самый быстрый'],
+    cheap:['tag-cheap','💰 Самый экономичный'],
+    favorite:['tag-fav','❤️ Любимый']
+  };
+  const t = tagMap[d.tag] || ['tag-ready',''];
+  return `<div class="recipe-card ${best?'best':''}">
+    ${t[1]?`<div class="recipe-tag ${t[0]}">${t[1]}</div>`:''}
+    <div class="recipe-emoji">${d.emoji||'🍽️'}</div>
+    <div class="recipe-name">${escapeHtml(d.name)}</div>
+    <div class="recipe-meta">${d.time} мин • ${d.kcal} ккал</div>
+    <div class="recipe-macros"><b>Б:</b> ${d.p} г <b>Ж:</b> ${d.f} г <b>У:</b> ${d.c} г</div>
+    ${d.note?`<div class="recipe-note">${escapeHtml(d.note)}</div>`:''}
+  </div>`;
+}
+
+function defaultDishes(){
+  return [
+    {name:'Курица с брокколи и сыром',emoji:'🍗',time:25,kcal:520,p:34,f:18,c:45,tag:'ready',note:'Только из того, что есть дома'},
+    {name:'Овсянка с ягодами',emoji:'🥣',time:10,kcal:290,p:9,f:7,c:48,tag:'healthy'},
+    {name:'Омлет с овощами',emoji:'🍳',time:12,kcal:340,p:22,f:24,c:6,tag:'fast'},
+    {name:'Творог с йогуртом',emoji:'🥛',time:5,kcal:210,p:28,f:8,c:9,tag:'cheap'},
+    {name:'Куриный суп с овощами',emoji:'🥣',time:35,kcal:180,p:16,f:5,c:14,tag:'favorite'},
+    {name:'Лосось с киноа',emoji:'🐟',time:30,kcal:480,p:34,f:22,c:32,tag:'healthy'}
+  ];
+}
+function defaultHave(){
+  return [
+    {name:'Яйца',qty:'12 шт.',emoji:'🥚'},
+    {name:'Брокколи',qty:'500 г',emoji:'🥦'},
+    {name:'Курица',qty:'400 г',emoji:'🍗'},
+    {name:'Сыр',qty:'200 г',emoji:'🧀'},
+    {name:'Молоко',qty:'1 л',emoji:'🥛'},
+    {name:'Морковь',qty:'2 шт.',emoji:'🥕'}
+  ];
+}
+function defaultMiss(){
+  return [
+    {name:'Киноа',qty:'100 г',emoji:'🌾'},
+    {name:'Лимон',qty:'1 шт.',emoji:'🍋'},
+    {name:'Сливки',qty:'100 мл',emoji:'🥛'}
+  ];
+}
+
+function viewProfile(){
+  const p = STATE.data.profile || {};
+  const pct = computeProfilePct(p);
+  let html = `
+    <div class="app-page-head"><h1>Профиль</h1><p>Расскажите о себе — мы подстроим рекомендации</p></div>
+    <div class="profile-head">
+      <div class="profile-avatar">${initials(p.name||userName())}</div>
+      <div class="profile-info">
+        <b>${escapeHtml(p.name||userName())}</b>
+        <span>${p.age||34} ${p.sex==='ж'?'года, женский':(p.sex==='м'?'лет, мужской':'лет')}</span>
+      </div>
+      <button class="btn btn-primary" id="edit-profile" style="margin-left:auto">Редактировать</button>
+    </div>
+    <div class="section-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b>Профиль заполнен на ${pct}%</b>
+        <span style="color:var(--t2);font-size:13px">Осталось немного 👀</span>
+      </div>
+      <div class="profile-progress-bar"><div class="profile-progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    <details class="profile-section" open>
+      <summary>Основные данные</summary>
+      <div class="profile-section-body">
+        <div class="field-row">
+          <div class="field"><label>Имя</label><input id="pf-name" value="${escapeHtml(p.name||'')}"></div>
+          <div class="field"><label>Возраст</label><input id="pf-age" type="number" value="${p.age||34}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Пол</label>
+            <select id="pf-sex"><option value="ж" ${p.sex==='ж'?'selected':''}>Женский</option><option value="м" ${p.sex==='м'?'selected':''}>Мужской</option></select>
+          </div>
+          <div class="field"><label>Рост (см)</label><input id="pf-h" type="number" value="${p.height||165}"></div>
+          <div class="field"><label>Вес (кг)</label><input id="pf-w" type="number" value="${p.weight||64}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Регион</label><input id="pf-region" value="${escapeHtml(p.region||'')}"></div>
+          <div class="field"><label>Цель</label>
+            <select id="pf-goal">
+              <option ${p.goal==='Похудение'?'selected':''}>Похудение</option>
+              <option ${p.goal==='Поддержание'?'selected':''}>Поддержание</option>
+              <option ${p.goal==='Набор'?'selected':''}>Набор</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="save-basic">Сохранить</button>
+      </div>
+    </details>
+    <details class="profile-section">
+      <summary>Здоровье ❤️</summary>
+      <div class="profile-section-body">
+        <div class="field"><label>Диагнозы</label><textarea id="pf-diag" rows="2">${escapeHtml(p.diagnosis||'')}</textarea></div>
+        <div class="field"><label>Рекомендации врача</label><textarea id="pf-rec" rows="2">${escapeHtml(p.doctorRecs||'')}</textarea></div>
+        <div class="field-row">
+          <div class="field"><label>Аллергии</label><input id="pf-all" value="${escapeHtml(p.allergies||'')}"></div>
+          <div class="field"><label>Непереносимость</label><input id="pf-int" value="${escapeHtml(p.intolerance||'')}"></div>
+        </div>
+        <div class="field"><label>Запрещённые продукты</label><input id="pf-forb" value="${escapeHtml(p.forbidden||'')}"></div>
+        <button class="btn btn-primary" id="save-health">Сохранить</button>
+      </div>
+    </details>
+    <details class="profile-section">
+      <summary>Анализы и документы 📄</summary>
+      <div class="profile-section-body">
+        <div class="field"><label>Витамины</label><textarea id="pf-vit" rows="2" placeholder="например, D — 18 нг/мл (низкий)">${escapeHtml(p.vitamins||'')}</textarea></div>
+        <div class="field"><label>Микроэлементы</label><textarea id="pf-mic" rows="2">${escapeHtml(p.micro||'')}</textarea></div>
+        <div class="field"><label>Макроэлементы</label><textarea id="pf-mac" rows="2">${escapeHtml(p.macro||'')}</textarea></div>
+        <button class="btn btn-ghost" id="upload-pdf">📄 Загрузить PDF анализов</button>
+        <button class="btn btn-ghost" style="margin-left:6px" id="upload-photo">📷 Фото анализов</button>
+      </div>
+    </details>
+    <details class="profile-section">
+      <summary>Предпочтения</summary>
+      <div class="profile-section-body">
+        <div class="field"><label>Любимые продукты</label><input value="курица, рыба, каши"></div>
+        <div class="field"><label>Нелюбимые</label><input value="грибы"></div>
+        <div class="field"><label>Способы приготовления</label><input value="варка, тушение, запекание"></div>
+        <div class="field"><label>Национальная кухня</label><input value="${escapeHtml(p.region||'')}"></div>
+        <button class="btn btn-primary">Сохранить</button>
+      </div>
+    </details>
+    <details class="profile-section">
+      <summary>Семья 👨‍👩‍👧</summary>
+      <div class="profile-section-body">
+        ${(p.family||[]).map(f=>`<div style="background:var(--g-pale);padding:10px;border-radius:10px;margin-bottom:6px"><b>${escapeHtml(f.name)}</b>, ${f.age} лет — ${escapeHtml(f.note)}</div>`).join('')}
+        <button class="btn btn-ghost">+ Добавить члена семьи</button>
+      </div>
+    </details>
+  `;
+  return [html,''];
+}
+
+function computeProfilePct(p){
+  const fields = ['name','age','height','weight','region','goal','diagnosis','allergies','doctorRecs'];
+  let filled = 0;
+  fields.forEach(f=>{ if(p[f] && String(p[f]).trim()) filled++; });
+  return Math.round(filled/fields.length*100);
+}
+
+function viewProducts(){
+  const seedP = window.SEED_DATA && window.SEED_DATA.products || [];
+  let html = `
+    <div class="app-page-head"><h1>Продукты дома</h1><p>Скажите, сфотографируйте или добавьте вручную</p></div>
+    <div class="products-tabs">
+      <button class="input-chip" id="add-manual">⌨️ Вручную</button>
+      <button class="input-chip voice" id="add-voice">🎤 Голосом</button>
+      <button class="input-chip photo" id="add-photo">📷 Фото</button>
+      <button class="input-chip scan" id="add-barcode">📊 Штрихкод</button>
+      <button class="input-chip" style="background:var(--l1)" id="add-receipt">🧾 Чек</button>
+      <button class="btn btn-primary" style="margin-left:auto" id="add-prod">+ Добавить</button>
+    </div>
+    <div class="products-list">
+      ${seedP.map(p=>`
+        <div class="product-card">
+          <div class="product-emoji">${p.emoji||'🥗'}</div>
+          <div style="flex:1">
+            <div class="product-name">${escapeHtml(p.name)}</div>
+            <div class="product-meta">${escapeHtml(p.qty)} • годен до ${p.exp} • <span class="${p.warn?'product-warn':''}">${p.days} ${p.days===1?'день':(p.days<5?'дня':'дней')}</span></div>
+          </div>
+          <button class="btn btn-ghost-sm">⋯</button>
+        </div>`).join('')}
+    </div>
+    <button class="btn-more" id="more-prod">Показать все продукты (${seedP.length}) ▾</button>
+  `;
+  const asideHtml = `
+    <div class="aside-card">
+      <h4>Подсказки</h4>
+      <div style="font-size:13px;color:var(--t2);line-height:1.5">
+        <p style="margin-bottom:8px">🔴 Используйте первыми продукты с истекающим сроком</p>
+        <p style="margin-bottom:8px">📅 Сервис напомнит, когда что-то заканчивается</p>
+        <p>📷 Можно просто сфотографировать холодильник</p>
+      </div>
+    </div>
+  `;
+  return [html,asideHtml];
+}
+
+function viewPlan(){
+  const meals = [
+    {type:'Завтрак',name:'Овсянка с ягодами',kcal:290,p:9,f:7,c:48,time:10},
+    {type:'Обед',name:'Куриный суп с овощами',kcal:180,p:16,f:5,c:14,time:35},
+    {type:'Ужин',name:'Лосось с брокколи и киноа',kcal:480,p:34,f:22,c:32,time:30},
+    {type:'Перекус',name:'Йогурт с орехами',kcal:170,p:10,f:6,c:18,time:3}
+  ];
+  let html = `
+    <div class="app-page-head"><h1>План питания</h1><p>Подберите рацион на день, неделю или месяц</p></div>
+    <div class="tabs" id="period-tabs">
+      <div class="tab active">День</div><div class="tab">2 дня</div><div class="tab">3 дня</div><div class="tab">Неделя</div><div class="tab">Месяц</div>
+    </div>
+    <div class="tabs" id="meal-tabs">
+      <div class="tab">Завтрак</div><div class="tab">Обед</div><div class="tab active">Ужин</div><div class="tab">Перекусы</div>
+    </div>
+    ${meals.map((m,i)=>`
+      <div class="plan-meal-card" ${i===2?'':'style="display:none"'}>
+        <h4>${m.type}: ${escapeHtml(m.name)}</h4>
+        <div class="macros"><span>${m.time} мин</span><span>${m.kcal} ккал</span><span>Б:${m.p} Ж:${m.f} У:${m.c}</span></div>
+        <div style="font-size:13.5px;color:var(--t2);margin-top:6px">
+          Ингредиенты: лосось 150 г, брокколи 200 г, киноа 80 г, оливковое масло 1 ст.л., лимон.
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost">🔄 Заменить блюдо</button>
+          <button class="btn btn-light">🥕 Заменить ингредиенты</button>
+        </div>
+      </div>`).join('')}
+    <div class="day-totals">
+      <h4>Всего за день</h4>
+      <div style="font-size:18px;font-weight:700;margin:6px 0">1120 / 1600 ккал</div>
+      ${macroBar('Белки',69,100)}
+      ${macroBar('Жиры',40,60)}
+      ${macroBar('Углеводы',112,200)}
+    </div>
+  `;
+  const asideHtml = `
+    <div class="aside-card">
+      <h4>Опции</h4>
+      <button class="btn btn-ghost btn-block" style="margin-bottom:8px">🏠 Использовать продукты дома</button>
+      <button class="btn btn-ghost btn-block" style="margin-bottom:8px">🛒 Сформировать список покупок</button>
+      <button class="btn btn-ghost btn-block">📄 Экспорт в PDF</button>
+    </div>
+  `;
+  return [html,asideHtml];
+}
+
+function viewOutside(){
+  let html = `
+    <div class="app-page-head"><h1>Вне дома</h1><p>Ресторан, гости, в дороге</p></div>
+    <div class="tabs">
+      <div class="tab active">🍴 Ресторан</div><div class="tab">🏠 В гостях</div>
+    </div>
+    <div class="out-card">
+      <h3 style="margin-bottom:6px">Ресторан Green Garden</h3>
+      <div style="color:var(--t2);font-size:13px;margin-bottom:12px">Можно выбрать ресторан или ввести свой</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-ghost-sm">📋 Меню</button>
+        <button class="btn btn-ghost-sm">🔗 Ссылка</button>
+        <button class="btn btn-ghost-sm">📷 Фото меню</button>
+        <button class="btn btn-ghost-sm">✏️ Ввести название</button>
+      </div>
+      <div class="ai-section">
+        <h5>Рекомендации AI</h5>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <div style="font-weight:700;color:var(--g);margin-bottom:4px">Рекомендуем ✅</div>
+            <ul class="ai-list">
+              <li>Лосось на гриле с овощами — 420 ккал</li>
+              <li>Куриная грудка с киноа — 380 ккал</li>
+              <li>Стейк из тунца — 350 ккал</li>
+            </ul>
+          </div>
+          <div>
+            <div style="font-weight:700;color:var(--r);margin-bottom:4px">Избегать ❌</div>
+            <ul class="ai-list">
+              <li class="bad">Острый том-ям — раздражает ЖКТ</li>
+              <li class="bad">Жареная картошка — много жира</li>
+              <li class="bad">Десерт с орехами — аллергия у дочери</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px">💬 Задать вопрос AI</button>
+    </div>
+    <div class="out-card">
+      <h3 style="margin-bottom:8px">🏠 В гостях</h3>
+      <p style="color:var(--t2);font-size:13.5px;margin-bottom:10px">Опишите словами или голосом, что планируется на столе. AI подскажет, что выбрать.</p>
+      <div class="field">
+        <textarea rows="3" placeholder="Например: будут шашлык, салаты с майонезом, торт"></textarea>
+      </div>
+      <button class="btn btn-primary" style="margin-top:10px">🎤 Рассказать голосом</button>
+    </div>
+  `;
+  const asideHtml = `
+    <div class="aside-card">
+      <h4>Важно</h4>
+      <p style="font-size:13px;color:var(--t2);line-height:1.5">Учитываем ваш диагноз (колит), аллергии семьи и личные предпочтения</p>
+    </div>
+  `;
+  return [html,asideHtml];
+}
+
+function viewShopping(){
+  const seedS = window.SEED_DATA && window.SEED_DATA.shopping || [];
+  const total = seedS.reduce((s,i)=>s+(i.done?0:i.price),0);
+  let html = `
+    <div class="app-page-head"><h1>Покупки</h1><p>Автоматически из плана + ваши добавки</p></div>
+    <div class="products-tabs">
+      <button class="input-chip">📋 Список</button>
+      <button class="input-chip">🏬 По отделам</button>
+      <button class="btn btn-primary" style="margin-left:auto" id="add-shop">+ Добавить</button>
+    </div>
+    <div>
+      ${seedS.map(s=>`
+        <div class="shop-item">
+          <span class="shop-check ${s.done?'done':''}"></span>
+          <div class="shop-info">
+            <div class="shop-name">${escapeHtml(s.name)} <span style="color:var(--t2);font-weight:400;font-size:13px">${s.qty}</span></div>
+            <div class="shop-meta">${s.dept} • ${s.price} ₽</div>
+          </div>
+          <button class="btn btn-ghost-sm">⋯</button>
+        </div>`).join('')}
+    </div>
+    <div class="budget">
+      <div><b>Бюджет:</b> 1500 ₽</div>
+      <div><b>К оплате:</b> ${total} ₽</div>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:14px" id="mark-bought">✅ Отметить купленные</button>
+  `;
+  const asideHtml = `
+    <div class="aside-card">
+      <h4>Подсказки</h4>
+      <p style="font-size:13px;color:var(--t2);line-height:1.5">Список автоматически обновляется при изменении плана питания</p>
+    </div>
+  `;
+  return [html,asideHtml];
+}
+
+function viewProgress(){
+  const weights = (STATE.data.progress && STATE.data.progress.weights) || [];
+  const planHist = window.SEED_DATA && window.SEED_DATA.planHistory || [
+    {period:'6 — 12 июля',pct:92},{period:'29 июня — 5 июля',pct:85},{period:'22 — 28 июня',pct:78}
+  ];
+  let chart = '';
+  if(weights.length>1){
+    const W=320,H=160,P=20;
+    const min=Math.min(...weights.map(w=>w.w))-1, max=Math.max(...weights.map(w=>w.w))+1;
+    const xs = i=>P + (W-2*P)*(i/(weights.length-1));
+    const ys = w => H-P - (H-2*P)*((w-min)/(max-min));
+    const pts = weights.map((w,i)=>`${xs(i)},${ys(w.w)}`).join(' ');
+    chart = `<svg class="chart-svg" viewBox="0 0 ${W} ${H}">
+      <line x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}" stroke="#d8dedb"/>
+      <line x1="${P}" y1="${P}" x2="${P}" y2="${H-P}" stroke="#d8dedb"/>
+      <polyline fill="none" stroke="#2E7D5C" stroke-width="3" points="${pts}"/>
+      ${weights.map((w,i)=>`<circle cx="${xs(i)}" cy="${ys(w.w)}" r="5" fill="#2E7D5C"/>
+        <text x="${xs(i)}" y="${ys(w.w)-10}" font-size="11" fill="#5a6b67" text-anchor="middle">${w.w}</text>`).join('')}
+    </svg>`;
+  } else {
+    chart = '<p style="color:var(--t2);font-size:13px;text-align:center;padding:30px">Добавьте первое взвешивание, чтобы увидеть динамику</p>';
+  }
+  let html = `
+    <div class="app-page-head"><h1>Прогресс</h1><p>Ваша динамика и достижения</p></div>
+    <div class="tabs">
+      <div class="tab active">⚖️ Вес</div><div class="tab">📄 Анализы</div><div class="tab">💊 Дефициты</div>
+    </div>
+    <div class="chart-card">
+      <h3 style="margin-bottom:10px">Динамика веса</h3>
+      ${chart}
+    </div>
+    <div class="section-card">
+      <h3>История планов</h3>
+      <div class="plan-history">
+        ${planHist.map(h=>`<div class="plan-history-item"><span>Неделя ${h.period}</span><span class="pct">Выполнено на ${h.pct}%</span></div>`).join('')}
+      </div>
+      <button class="btn-more">Посмотреть все ▾</button>
+    </div>
+    <div class="section-card">
+      <h3>Напоминания</h3>
+      <div style="font-size:14px;color:var(--t)">
+        <div style="padding:8px 0;border-bottom:1px solid var(--l1)">🔔 Обновить анализы — через 30 дней</div>
+        <div style="padding:8px 0;border-bottom:1px solid var(--l1)">💊 Купить витамин D</div>
+        <div style="padding:8px 0">🥬 Пополнить продукты — Курица заканчивается</div>
+      </div>
+    </div>
+  `;
+  const asideHtml = weights.length ? `
+    <div class="aside-card">
+      <h4>Текущая цель</h4>
+      <p style="font-size:13px;color:var(--t2);line-height:1.5">Поддержание веса ${weights[weights.length-1].w} кг</p>
+      <p style="font-size:24px;font-weight:800;color:var(--g);margin-top:6px">${weights[weights.length-1].w} кг</p>
+    </div>
+  ` : '';
+  return [html,asideHtml];
+}
+
+function viewSettings(){
+  let html = `
+    <div class="app-page-head"><h1>Настройки</h1><p>Подстройте приложение под себя</p></div>
+    <div class="settings-card">
+      <div class="settings-row"><span>Напоминания о приёмах пищи</span><span class="switch on" data-sw="reminders"></span></div>
+      <div class="settings-row"><span>Голосовой ввод</span><span class="switch on" data-sw="voice"></span></div>
+      <div class="settings-row"><span>Уведомления о сроке годности</span><span class="switch on" data-sw="expiry"></span></div>
+      <div class="settings-row"><span>Крупный шрифт</span><span class="switch" data-sw="big"></span></div>
+    </div>
+    <div class="settings-card">
+      <h3 style="margin-bottom:10px">Данные</h3>
+      <button class="btn btn-light btn-block" style="margin-bottom:8px">📥 Экспортировать данные</button>
+      <button class="btn btn-danger btn-block">🗑 Удалить профиль</button>
+    </div>
+    <div class="settings-card">
+      <h3 style="margin-bottom:10px">О приложении</h3>
+      <div style="color:var(--t2);font-size:13.5px;line-height:1.6">
+        Навигатор питания v3.0<br>
+        © 2026 Все права защищены
+      </div>
+    </div>
+  `;
+  const asideHtml = `
+    <div class="aside-card">
+      <h4>Поддержка</h4>
+      <p style="font-size:13px;color:var(--t2);line-height:1.5">Если что-то не работает — напишите нам, мы поможем</p>
+      <button class="btn btn-primary btn-block" style="margin-top:10px">💬 Связаться</button>
+    </div>
+  `;
+  return [html,asideHtml];
+}
+
+function bindAppEvents(name){
+  document.querySelectorAll('.app-nav-item,.app-bottom-nav a').forEach(a=>{
+    a.addEventListener('click',e=>{
+      e.preventDefault();
+      const s = a.dataset.screen;
+      if(s) renderApp(s);
+    });
+  });
+  document.querySelectorAll('[data-go-plan]').forEach(b=>b.addEventListener('click',()=>renderApp('plan')));
+  const sb = document.getElementById('save-basic');
+  if(sb) sb.addEventListener('click',()=>{
+    const p = STATE.data.profile || (STATE.data.profile={});
+    p.name = val('pf-name'); p.age = +val('pf-age')||0; p.sex = val('pf-sex');
+    p.height = +val('pf-h')||0; p.weight = +val('pf-w')||0;
+    p.region = val('pf-region'); p.goal = val('pf-goal');
+    save(); toast('Сохранено ✅'); renderApp('profile');
+  });
+  const sh = document.getElementById('save-health');
+  if(sh) sh.addEventListener('click',()=>{
+    const p = STATE.data.profile || (STATE.data.profile={});
+    p.diagnosis = val('pf-diag'); p.doctorRecs = val('pf-rec');
+    p.allergies = val('pf-all'); p.intolerance = val('pf-int'); p.forbidden = val('pf-forb');
+    save(); toast('Сохранено ✅');
+  });
+  document.querySelectorAll('.tabs').forEach(tabs=>{
+    tabs.querySelectorAll('.tab').forEach(t=>{
+      t.addEventListener('click',()=>{
+        tabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        t.classList.add('active');
+      });
+    });
+  });
+  document.querySelectorAll('.shop-check').forEach(c=>{
+    c.addEventListener('click',()=>c.classList.toggle('done'));
+  });
+  document.querySelectorAll('.meal-check').forEach(c=>{
+    c.addEventListener('click',()=>c.classList.toggle('done'));
+  });
+  document.querySelectorAll('.switch').forEach(s=>{
+    s.addEventListener('click',()=>{
+      s.classList.toggle('on');
+      const st = STATE.data.settings || (STATE.data.settings={});
+      st[s.dataset.sw] = s.classList.contains('on');
+      save();
+    });
+  });
+  ['add-prod','add-manual','add-voice','add-photo','add-barcode','add-receipt',
+   'add-shop','mark-bought','cook-this','voice-btn','photo-btn','add-miss','more-recipes','more-prod'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('click',()=>toast('В разработке — скоро будет готово ✨'));
+  });
+}
+
+function val(id){ const e = document.getElementById(id); return e?e.value:''; }
+function initials(n){ if(!n) return '?'; return n.trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase(); }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg){
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style,{
+    position:'fixed',bottom:'90px',left:'50%',transform:'translateX(-50%)',
+    background:'#1f2a28',color:'#fff',padding:'10px 18px',borderRadius:'20px',
+    fontSize:'14px',zIndex:'200',boxShadow:'0 4px 12px rgba(0,0,0,.2)'
+  });
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+
+const mm = document.getElementById('app-mobile-menu');
+if(mm){
+  mm.addEventListener('click',()=>{
+    document.querySelector('.app-sidebar').classList.toggle('mobile-open');
+  });
+}
+
+go('splash');
 
 })();
