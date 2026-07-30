@@ -36,64 +36,41 @@ window.SEED_FOODS = [
   {name:'Нут',category:'protein',kcal:360,protein_g:20,fat_g:5,carb_g:60}
 ];
 
-/* Демо-данные для личного кабинета */
 window.SEED_DATA = {
-  profile: {
-    name: 'Гульжамаш',
-    age: 34,
-    sex: 'ж',
-    height: 165,
-    weight: 64,
-    goal: 'Поддержание',
-    region: 'Центральная Азия',
-    diagnosis: 'Колит, ремиссия',
-    stage: '',
-    allergies: 'Нет',
-    intolerance: '',
-    forbidden: '',
-    doctorRecs: 'Ограничить грубую клетчатку, жирное и острое. Дробное питание 5 раз в день.',
-    bones: 'норма',
-    vitamins: 'Витамин D — низкий',
-    micro: '',
-    macro: '',
-    family: [
-      {name:'Супруг',age:36,note:'без ограничений'},
-      {name:'Дочь',age:9,note:'аллергия на орехи'}
-    ]
-  },
+  profile: {name:'Гульжамаш',age:34,sex:'ж',height:165,weight:64,goal:'Поддержание',region:'Центральная Азия',diagnosis:'Колит, ремиссия',stage:'',allergies:'Нет',intolerance:'',forbidden:'',doctorRecs:'Ограничить грубую клетчатку, жирное и острое. Дробное питание 5 раз в день.',bones:'норма',vitamins:'Витамин D — низкий',micro:'',macro:'',family:[{name:'Супруг',age:36,note:'без ограничений'},{name:'Дочь',age:9,note:'аллергия на орехи'}]},
   products: [
-    {id:'p1', name:'Яйца', qty:'12 шт.', emoji:'🥚', days:14, exp:'10.08.2026', warn:false},
-    {id:'p2', name:'Брокколи', qty:'500 г', emoji:'🥦', days:3, exp:'30.07.2026', warn:false},
-    {id:'p3', name:'Куриное филе', qty:'400 г', emoji:'🍗', days:1, exp:'28.07.2026', warn:true},
-    {id:'p4', name:'Сыр', qty:'200 г', emoji:'🧀', days:10, exp:'06.08.2026', warn:false},
-    {id:'p5', name:'Молоко', qty:'1 л', emoji:'🥛', days:5, exp:'01.08.2026', warn:false},
-    {id:'p6', name:'Морковь', qty:'2 шт.', emoji:'🥕', days:20, exp:'16.08.2026', warn:false},
-    {id:'p7', name:'Овсянка', qty:'800 г', emoji:'🌾', days:120, exp:'25.11.2026', warn:false},
-    {id:'p8', name:'Йогурт натуральный', qty:'4 шт.', emoji:'🥛', days:6, exp:'02.08.2026', warn:false},
-    {id:'p9', name:'Рис', qty:'900 г', emoji:'🍚', days:180, exp:'22.01.2027', warn:false},
-    {id:'p10', name:'Творог', qty:'250 г', emoji:'🥛', days:4, exp:'31.07.2026', warn:false}
+    {id:'p1',name:'Яйца',qty:'12 шт.',emoji:'🥚',days:14,exp:'10.08.2026',warn:false},
+    {id:'p2',name:'Брокколи',qty:'500 г',emoji:'🥦',days:3,exp:'30.07.2026',warn:false},
+    {id:'p3',name:'Куриное филе',qty:'400 г',emoji:'🍗',days:1,exp:'28.07.2026',warn:true},
+    {id:'p4',name:'Сыр',qty:'200 г',emoji:'🧀',days:10,exp:'06.08.2026',warn:false},
+    {id:'p5',name:'Молоко',qty:'1 л',emoji:'🥛',days:5,exp:'01.08.2026',warn:false},
+    {id:'p6',name:'Морковь',qty:'2 шт.',emoji:'🥕',days:20,exp:'16.08.2026',warn:false},
+    {id:'p7',name:'Овсянка',qty:'800 г',emoji:'🌾',days:120,exp:'25.11.2026',warn:false},
+    {id:'p8',name:'Йогурт натуральный',qty:'4 шт.',emoji:'🥛',days:6,exp:'02.08.2026',warn:false},
+    {id:'p9',name:'Рис',qty:'900 г',emoji:'🍚',days:180,exp:'22.01.2027',warn:false},
+    {id:'p10',name:'Творог',qty:'250 г',emoji:'🥛',days:4,exp:'31.07.2026',warn:false}
   ],
   missing: [
-    {id:'m1', name:'Киноа', qty:'100 г', emoji:'🌾'},
-    {id:'m2', name:'Лимон', qty:'1 шт.', emoji:'🍋'},
-    {id:'m3', name:'Сливки', qty:'100 мл', emoji:'🥛'}
+    {id:'m1',name:'Киноа',qty:'100 г',emoji:'🌾'},
+    {id:'m2',name:'Лимон',qty:'1 шт.',emoji:'🍋'},
+    {id:'m3',name:'Сливки',qty:'100 мл',emoji:'🥛'}
   ],
   dishes: [
-    {id:'d1', name:'Курица с брокколи и сыром', emoji:'🍗', time:25, kcal:520, p:34, f:18, c:45, tag:'ready', note:'Только из того, что есть дома'},
-    {id:'d2', name:'Овсянка с ягодами', emoji:'🥣', time:10, kcal:290, p:9, f:7, c:48, tag:'healthy'},
-    {id:'d3', name:'Омлет с овощами', emoji:'🍳', time:12, kcal:340, p:22, f:24, c:6, tag:'fast'},
-    {id:'d4', name:'Творог с йогуртом', emoji:'🥛', time:5, kcal:210, p:28, f:8, c:9, tag:'cheap'},
-    {id:'d5', name:'Куриный суп с овощами', emoji:'🥣', time:35, kcal:180, p:16, f:5, c:14, tag:'favorite'},
-    {id:'d6', name:'Лосось с киноа', emoji:'🐟', time:30, kcal:480, p:34, f:22, c:32, tag:'healthy'}
+    {id:'d1',name:'Курица с брокколи и сыром',emoji:'🍗',time:25,kcal:520,p:34,f:18,c:45,tag:'ready',note:'Только из того, что есть дома'},
+    {id:'d2',name:'Овсянка с ягодами',emoji:'🥣',time:10,kcal:290,p:9,f:7,c:48,tag:'healthy'},
+    {id:'d3',name:'Омлет с овощами',emoji:'🍳',time:12,kcal:340,p:22,f:24,c:6,tag:'fast'},
+    {id:'d4',name:'Творог с йогуртом',emoji:'🥛',time:5,kcal:210,p:28,f:8,c:9,tag:'cheap'},
+    {id:'d5',name:'Куриный суп с овощами',emoji:'🥣',time:35,kcal:180,p:16,f:5,c:14,tag:'favorite'},
+    {id:'d6',name:'Лосось с киноа',emoji:'🐟',time:30,kcal:480,p:34,f:22,c:32,tag:'healthy'}
   ],
-  today: { kcal:1200, p:72, f:45, c:140 },
+  today: {kcal:1200,p:72,f:45,c:140},
   shopping: [
-    {id:'s1', name:'Киноа', qty:'100 г', price:120, dept:'Крупы', done:false},
-    {id:'s2', name:'Лимон', qty:'1 шт.', price:40, dept:'Овощи и фрукты', done:false},
-    {id:'s3', name:'Сливки 10%', qty:'100 мл', price:80, dept:'Молочное', done:false},
-    {id:'s4', name:'Лосось', qty:'300 г', price:480, dept:'Рыба', done:false},
-    {id:'s5', name:'Авокадо', qty:'2 шт.', price:160, dept:'Овощи и фрукты', done:true},
-    {id:'s6', name:'Огурцы', qty:'500 г', price:90, dept:'Овощи и фрукты', done:false}
+    {id:'s1',name:'Киноа',qty:'100 г',price:120,dept:'Крупы',done:false},
+    {id:'s2',name:'Лимон',qty:'1 шт.',price:40,dept:'Овощи и фрукты',done:false},
+    {id:'s3',name:'Сливки 10%',qty:'100 мл',price:80,dept:'Молочное',done:false},
+    {id:'s4',name:'Лосось',qty:'300 г',price:480,dept:'Рыба',done:false},
+    {id:'s5',name:'Авокадо',qty:'2 шт.',price:160,dept:'Овощи и фрукты',done:true},
+    {id:'s6',name:'Огурцы',qty:'500 г',price:90,dept:'Овощи и фрукты',done:false}
   ],
   budget: 1500,
   planHistory: [
@@ -103,10 +80,10 @@ window.SEED_DATA = {
   ],
   progress: {
     weights: [
-      {d:'2026-06-01', w:65},
-      {d:'2026-06-15', w:64},
-      {d:'2026-07-01', w:63.5},
-      {d:'2026-07-15', w:63}
+      {d:'2026-06-01',w:65},
+      {d:'2026-06-15',w:64},
+      {d:'2026-07-01',w:63.5},
+      {d:'2026-07-15',w:63}
     ]
   }
 };
