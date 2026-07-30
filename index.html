@@ -9,9 +9,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-192.svg">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 <script>
-/* Cache-busting: снимаем регистрацию старого SW перед загрузкой */
 (function(){
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -23,142 +22,23 @@
 </head>
 <body>
 
-<!-- ============ ЭКРАН 1: Привлекающая страница ============ -->
 <section class="screen screen-splash active" id="screen-splash">
-  <div class="splash-bg" aria-hidden="true">
-    <div class="cloud-big">
-      <div class="cloud-bubble">
-        <div class="cb-line">Боже, чем питаться?</div>
-        <div class="cb-line">Что приготовить?</div>
-        <div class="cb-line">Где купить?</div>
-        <div class="cb-line">Как сбалансировать питание?</div>
-      </div>
-    </div>
-    <div class="cloud-num cloud-num-1"><span class="cn-num">1)</span> непереносимость</div>
-    <div class="cloud-num cloud-num-2"><span class="cn-num">2)</span> аллергия</div>
-    <div class="cloud-num cloud-num-3"><span class="cn-num">3)</span> запрет врача</div>
-    <div class="cloud-num cloud-num-4"><span class="cn-num">4)</span> этих продуктов нет у нас</div>
-    <div class="cloud-num cloud-num-etc">и т.д.</div>
-
-    <div class="food food-bag-1">ГРЕЧКА</div>
-    <div class="food food-bag-2">ОВСЯНКА</div>
-    <div class="food-icon food-veg-1">🥦</div>
-    <div class="food-icon food-veg-2">🥕</div>
-    <div class="food-icon food-veg-3">🥒</div>
-    <div class="food-icon food-veg-4">🍅</div>
-    <div class="food-icon food-veg-5">🥬</div>
-    <div class="food-icon food-veg-6">🫑</div>
-    <div class="food-icon food-veg-7">🥔</div>
-    <div class="food-icon food-veg-8">🍆</div>
-    <div class="food-icon food-fruit-1">🍎</div>
-    <div class="food-icon food-fruit-2">🍌</div>
-    <div class="food-icon food-fruit-3">🍇</div>
-    <div class="food-icon food-fruit-4">🍐</div>
-    <div class="food-icon food-fruit-5">🍊</div>
-    <div class="food-icon food-meat-1">🥩</div>
-    <div class="food-icon food-meat-2">🍗</div>
-    <div class="food-icon food-meat-3">🌭</div>
-    <div class="food-icon food-fish-1">🐟</div>
-    <div class="food-icon food-bread-1">🍞</div>
-    <div class="food-icon food-rice-1">🍚</div>
-    <div class="food-icon food-egg-1">🥚</div>
-    <div class="food-icon food-cheese-1">🧀</div>
-    <div class="food-icon food-grain-1">🌾</div>
-
-    <div class="hourglass-1">⏳</div>
-    <div class="hourglass-2">⏳</div>
-    <div class="phone-icon">📱</div>
-    <div class="sad-face">☹️</div>
-    <div class="bolt-1">⚡</div>
-    <div class="bolt-2">⚡</div>
-    <div class="bolt-3">⚡</div>
+  <div class="splash-art">
+    <img src="assets/image1.jpg" alt="Стресс от выбора еды" class="splash-img">
   </div>
-
-  <div class="splash-figure" aria-hidden="true">
-    <svg viewBox="0 0 200 320" xmlns="http://www.w3.org/2000/svg" class="splash-person-svg">
-      <path d="M55 75 Q55 30 100 30 Q145 30 145 75 L150 165 Q150 175 140 178 L60 178 Q50 175 50 165 Z" fill="#6a3e1f" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-      <ellipse cx="100" cy="100" rx="42" ry="48" fill="#fde2c4" stroke="#000" stroke-width="3"/>
-      <path d="M78 95 Q83 100 88 95" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M112 95 Q117 100 122 95" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M75 82 L92 80" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-      <path d="M108 80 L125 82" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-      <path d="M88 125 Q100 118 112 125" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M75 130 Q60 100 65 70" stroke="#fde2c4" stroke-width="14" fill="none" stroke-linecap="round"/>
-      <path d="M125 130 Q140 100 135 70" stroke="#fde2c4" stroke-width="14" fill="none" stroke-linecap="round"/>
-      <circle cx="65" cy="68" r="10" fill="#fde2c4" stroke="#000" stroke-width="3"/>
-      <circle cx="135" cy="68" r="10" fill="#fde2c4" stroke="#000" stroke-width="3"/>
-      <path d="M55 175 Q55 165 75 165 L125 165 Q145 165 145 175 L150 270 L50 270 Z" fill="#2bb3a8" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M70 200 Q80 190 90 200 Q100 210 110 200 Q120 190 130 200" stroke="#1a8a82" stroke-width="2" fill="none"/>
-      <path d="M70 230 Q80 220 90 230 Q100 240 110 230 Q120 220 130 230" stroke="#1a8a82" stroke-width="2" fill="none"/>
-      <path d="M50 270 L150 270 L165 305 L35 305 Z" fill="#ec5b8a" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-      <rect x="70" y="305" width="20" height="15" fill="#fde2c4" stroke="#000" stroke-width="3"/>
-      <rect x="110" y="305" width="20" height="15" fill="#fde2c4" stroke="#000" stroke-width="3"/>
-      <ellipse cx="80" cy="320" rx="14" ry="6" fill="#3a64b8" stroke="#000" stroke-width="2"/>
-      <ellipse cx="120" cy="320" rx="14" ry="6" fill="#3a64b8" stroke="#000" stroke-width="2"/>
-    </svg>
-  </div>
-
   <div class="splash-cta">
     <button class="btn btn-splash" id="splash-go">Хочу разобраться</button>
     <div class="splash-hint">Нажмите в любом месте, чтобы продолжить</div>
   </div>
 </section>
 
-<!-- ============ ЭКРАН 2: Знакомство ============ -->
 <section class="screen screen-intro" id="screen-intro">
   <div class="intro-scene">
-    <div class="intro-foods" aria-hidden="true">
-      <span class="ifood" style="--x:5%;--y:10%">🥦</span>
-      <span class="ifood" style="--x:85%;--y:8%">🥑</span>
-      <span class="ifood" style="--x:10%;--y:55%">🌶️</span>
-      <span class="ifood" style="--x:80%;--y:60%">🥩</span>
-      <span class="ifood" style="--x:4%;--y:78%">🍎</span>
-      <span class="ifood" style="--x:88%;--y:80%">🍌</span>
-      <span class="ifood" style="--x:48%;--y:5%">🍚</span>
-      <span class="ifood" style="--x:55%;--y:88%">🍇</span>
-      <span class="ifood" style="--x:18%;--y:32%">🐟</span>
-      <span class="ifood" style="--x:75%;--y:30%">🥕</span>
-    </div>
-
-    <div class="intro-people">
-      <svg class="intro-helper" viewBox="0 0 180 280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M50 60 Q50 25 90 25 Q130 25 130 60 L130 80 Q130 90 120 90 L60 90 Q50 90 50 80 Z" fill="#5b3216" stroke="#000" stroke-width="3"/>
-        <ellipse cx="90" cy="85" rx="36" ry="42" fill="#fde2c4" stroke="#000" stroke-width="3"/>
-        <circle cx="78" cy="82" r="3" fill="#000"/>
-        <circle cx="102" cy="82" r="3" fill="#000"/>
-        <path d="M76 105 Q90 115 104 105" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <path d="M55 130 L55 220 L70 230 L70 270 L80 270 L80 230 L100 230 L100 270 L110 270 L110 230 L125 220 L125 130 Q125 120 115 120 L65 120 Q55 120 55 130" fill="#ffd84d" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-        <path d="M55 220 L125 220 L130 270 L50 270 Z" fill="#3a64b8" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-        <rect x="62" y="270" width="22" height="10" fill="#fff" stroke="#000" stroke-width="2"/>
-        <rect x="96" y="270" width="22" height="10" fill="#fff" stroke="#000" stroke-width="2"/>
-      </svg>
-
-      <div class="intro-cloud">
-        <div class="cloud-title">Не паникуй.</div>
-        <div class="cloud-body">Я тебе помогу и учту не только твои ограничения, но и твои пожелания и предпочтения, и конечно, наличие продуктов в твоём регионе.</div>
-        <div class="cloud-body">Но сначала нам надо подружиться. Давай познакомимся.</div>
-        <div class="cloud-body">И чтобы начать наш путь, нажми на кнопку <b>СТАРТ</b></div>
-      </div>
-
-      <svg class="intro-user" viewBox="0 0 180 280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M40 70 Q40 25 90 25 Q140 25 140 70 L145 180 Q145 190 135 192 L45 192 Q35 190 35 180 Z" fill="#6a3e1f" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-        <ellipse cx="90" cy="95" rx="38" ry="44" fill="#fde2c4" stroke="#000" stroke-width="3"/>
-        <circle cx="78" cy="92" r="3" fill="#000"/>
-        <circle cx="102" cy="92" r="3" fill="#000"/>
-        <path d="M76 112 Q90 108 104 112" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <path d="M55 135 L55 240 L75 250 L75 280 L85 280 L85 250 L95 250 L95 280 L105 280 L105 250 L125 240 L125 135 Q125 125 115 125 L65 125 Q55 125 55 135" fill="#2bb3a8" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-        <path d="M70 175 Q80 165 90 175 Q100 185 110 175" stroke="#1a8a82" stroke-width="2" fill="none"/>
-        <path d="M55 250 L125 250 L140 285 L40 285 Z" fill="#ec5b8a" stroke="#000" stroke-width="3" stroke-linejoin="round"/>
-        <path d="M75 145 Q90 165 75 180" stroke="#fde2c4" stroke-width="14" fill="none" stroke-linecap="round"/>
-      </svg>
-      <div class="intro-q">?</div>
-    </div>
-
+    <img src="assets/image2.jpg" alt="Знакомство с помощником" class="intro-img">
     <button class="btn btn-start" id="intro-start">СТАРТ</button>
   </div>
 </section>
 
-<!-- ============ ЭКРАН 3: Лендинг ============ -->
 <section class="screen screen-landing" id="screen-landing">
   <header class="ld-header">
     <div class="ld-logo">
@@ -194,48 +74,8 @@
         <div class="ld-handwritten">Ответьте на несколько вопросов — остальное мы сделаем за вас ✏️</div>
       </div>
     </div>
-    <div class="ld-hero-visual" aria-hidden="true">
-      <div class="ld-phone">
-        <div class="ld-phone-notch"></div>
-        <div class="ld-phone-status"><span>9:41</span><span>📶 🔋</span></div>
-        <div class="ld-phone-content">
-          <div class="ld-ph-greet">Добрый вечер, <b>Айгуль</b>! <span class="ld-ph-star">⭐</span></div>
-          <div class="ld-ph-q">Что приготовить прямо сейчас?</div>
-          <div class="ld-ph-recipes">
-            <div class="ld-ph-recipe ld-ph-best">
-              <div class="ld-ph-rec-photo">🍗</div>
-              <div class="ld-ph-rec-info">
-                <div class="ld-ph-rec-name">Курица с брокколи и сыром</div>
-                <div class="ld-ph-rec-meta">25 мин • 520 ккал</div>
-              </div>
-              <div class="ld-ph-tag">Лучший вариант</div>
-            </div>
-            <div class="ld-ph-recipe">
-              <div class="ld-ph-rec-photo">🥣</div>
-              <div class="ld-ph-rec-info">
-                <div class="ld-ph-rec-name">Овсянка с ягодами</div>
-                <div class="ld-ph-rec-meta">10 мин • 290 ккал</div>
-              </div>
-              <div class="ld-ph-tag tag-h">⭐ Полезный</div>
-            </div>
-            <div class="ld-ph-recipe">
-              <div class="ld-ph-rec-photo">🍳</div>
-              <div class="ld-ph-rec-info">
-                <div class="ld-ph-rec-name">Омлет с овощами</div>
-                <div class="ld-ph-rec-meta">12 мин • 340 ккал</div>
-              </div>
-              <div class="ld-ph-tag tag-f">⚡ Быстрый</div>
-            </div>
-          </div>
-          <div class="ld-ph-bottomnav">
-            <span class="active">🏠<br><small>Главная</small></span>
-            <span>🥬<br><small>Продукты</small></span>
-            <span>📅<br><small>План</small></span>
-            <span>🛒<br><small>Покупки</small></span>
-            <span>👤<br><small>Профиль</small></span>
-          </div>
-        </div>
-      </div>
+    <div class="ld-hero-visual">
+      <img src="assets/image3.jpg" alt="Пример приложения" class="ld-hero-img">
     </div>
   </section>
 
@@ -244,30 +84,10 @@
     <p class="ld-sub">Всего четыре простых шага до вашего персонального плана питания</p>
     <p class="ld-text">Создайте профиль, расскажите о своём здоровье и предпочтениях, добавьте продукты, которые уже есть дома, и получите персональный план питания с рецептами, списком покупок и рекомендациями именно для вас.</p>
     <div class="ld-steps">
-      <div class="ld-step">
-        <div class="ld-step-num">1</div>
-        <div class="ld-step-icon">👤</div>
-        <div class="ld-step-h">Создайте профиль</div>
-        <div class="ld-step-t">Укажите данные о себе и вашей семье</div>
-      </div>
-      <div class="ld-step">
-        <div class="ld-step-num">2</div>
-        <div class="ld-step-icon">❤️</div>
-        <div class="ld-step-h">Расскажите о здоровье и предпочтениях</div>
-        <div class="ld-step-t">Укажите рекомендации врача, аллергии, цели и вкусы</div>
-      </div>
-      <div class="ld-step">
-        <div class="ld-step-num">3</div>
-        <div class="ld-step-icon">🛒</div>
-        <div class="ld-step-h">Добавьте продукты дома</div>
-        <div class="ld-step-t">Вручную, фото или скан чека — мы учтём, что у вас есть</div>
-      </div>
-      <div class="ld-step">
-        <div class="ld-step-num">4</div>
-        <div class="ld-step-icon">🍽️</div>
-        <div class="ld-step-h">Получите персональный план</div>
-        <div class="ld-step-t">Блюда, рецепты и список покупок — всегда под рукой</div>
-      </div>
+      <div class="ld-step"><div class="ld-step-num">1</div><div class="ld-step-icon">👤</div><div class="ld-step-h">Создайте профиль</div><div class="ld-step-t">Укажите данные о себе и вашей семье</div></div>
+      <div class="ld-step"><div class="ld-step-num">2</div><div class="ld-step-icon">❤️</div><div class="ld-step-h">Расскажите о здоровье и предпочтениях</div><div class="ld-step-t">Укажите рекомендации врача, аллергии, цели и вкусы</div></div>
+      <div class="ld-step"><div class="ld-step-num">3</div><div class="ld-step-icon">🛒</div><div class="ld-step-h">Добавьте продукты дома</div><div class="ld-step-t">Вручную, фото или скан чека — мы учтём, что у вас есть</div></div>
+      <div class="ld-step"><div class="ld-step-num">4</div><div class="ld-step-icon">🍽️</div><div class="ld-step-h">Получите персональный план</div><div class="ld-step-t">Блюда, рецепты и список покупок — всегда под рукой</div></div>
     </div>
   </section>
 
@@ -306,21 +126,9 @@
     <p class="ld-sub">Истории людей, которым сервис уже помогает каждый день</p>
     <p class="ld-text">Мы рады, что наши пользователи доверяют нам заботу о своём ежедневном питании. Их отзывы помогают нам развивать сервис и делать его ещё полезнее.</p>
     <div class="ld-reviews">
-      <div class="ld-review">
-        <div class="ld-rev-head"><div class="ld-rev-avatar">А</div><div><b>Анна</b>, 34 года</div></div>
-        <div class="ld-stars">★★★★★</div>
-        <p>«Изменила свой подход к питанию. Меню разнообразное и вкусное, а я наконец перестала каждый день ломать голову «что приготовить». Рекомендую!»</p>
-      </div>
-      <div class="ld-review">
-        <div class="ld-rev-head"><div class="ld-rev-avatar">М</div><div><b>Мария</b>, 52 года</div></div>
-        <div class="ld-stars">★★★★★</div>
-        <p>«Очень радует, что сервис учитывает рекомендации врача и то, что уже есть дома. Экономит и время, и деньги. Спасибо!»</p>
-      </div>
-      <div class="ld-review">
-        <div class="ld-rev-head"><div class="ld-rev-avatar">И</div><div><b>Игорь</b>, 28 лет</div></div>
-        <div class="ld-stars">★★★★★</div>
-        <p>«Экономлю время и деньги, питаюсь правильно. Раньше на это уходили часы, теперь — пара минут. Очень удобно!»</p>
-      </div>
+      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">А</div><div><b>Анна</b>, 34 года</div></div><div class="ld-stars">★★★★★</div><p>«Изменила свой подход к питанию. Меню разнообразное и вкусное, а я наконец перестала каждый день ломать голову «что приготовить». Рекомендую!»</p></div>
+      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">М</div><div><b>Мария</b>, 52 года</div></div><div class="ld-stars">★★★★★</div><p>«Очень радует, что сервис учитывает рекомендации врача и то, что уже есть дома. Экономит и время, и деньги. Спасибо!»</p></div>
+      <div class="ld-review"><div class="ld-rev-head"><div class="ld-rev-avatar">И</div><div><b>Игорь</b>, 28 лет</div></div><div class="ld-stars">★★★★★</div><p>«Экономлю время и деньги, питаюсь правильно. Раньше на это уходили часы, теперь — пара минут. Очень удобно!»</p></div>
     </div>
   </section>
 
@@ -363,7 +171,6 @@
   </footer>
 </section>
 
-<!-- ============ ЭКРАН 4: Личный кабинет ============ -->
 <section class="screen screen-app" id="screen-app">
   <aside class="app-sidebar">
     <div class="app-side-head">
@@ -391,13 +198,8 @@
     </div>
   </aside>
 
-  <main class="app-main" id="app-main">
-    <!-- Контент рендерится в app.js -->
-  </main>
-
-  <aside class="app-aside" id="app-aside">
-    <!-- Контент рендерится в app.js -->
-  </aside>
+  <main class="app-main" id="app-main"></main>
+  <aside class="app-aside" id="app-aside"></aside>
 
   <button class="app-mobile-menu" id="app-mobile-menu" aria-label="Меню">☰</button>
   <nav class="app-bottom-nav" aria-label="Мобильная навигация">
@@ -409,12 +211,11 @@
   </nav>
 </section>
 
-<!-- ===== Универсальные модалки ===== -->
 <div class="modal-overlay" id="modal-overlay" hidden>
   <div class="modal" id="modal-content"></div>
 </div>
 
-<script src="seed.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="seed.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
