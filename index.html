@@ -1,57 +1,133 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F6F1E7">
+<meta name="theme-color" content="#2E7D5C">
 <title>Навигатор питания</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Gulkin-m/navigator-pitaniya@main/styles.css?v=2">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.svg">
+<link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 
-<aside class="ribbon" id="ribbon">
-  <span class="ribbon__dot"></span>
-  <span class="ribbon__text">Информационный помощник. <strong>Не заменяет врача</strong>. Все решения согласуйте со специалистом.</span>
-  <button class="ribbon__close" aria-label="Закрыть" data-action="hide-ribbon">×</button>
-</aside>
+<!-- ЭКРАН 1: ПРИВЛЕКАЮЩАЯ СТРАНИЦА -->
+<section id="screen-splash" class="screen screen-splash active">
+  <div class="splash-wrap">
+    <div class="splash-cloud-big">
+      <div class="cloud-line">Боже, чем питаться?</div>
+      <div class="cloud-line">Что приготовить?</div>
+      <div class="cloud-line">Где купить?</div>
+      <div class="cloud-line">Как сбалансировать питание?</div>
+    </div>
 
-<header class="hero">
-  <div class="hero__bg"></div>
-  <div class="hero__inner">
-    <div class="hero__bowl"><span class="bowl-anim">🥗</span></div>
-    <div class="hero__eyebrow"><span></span> личный навигатор питания</div>
-    <h1 class="hero__title">Что <em>съесть</em><br>сейчас?</h1>
-    <p class="hero__sub">Проактивный план: <em>что</em> и <em>сколько</em> граммов — а не вчерашний отчёт. Спокойно, по делу, с заботой о кишечнике.</p>
-    <div class="hero__cta">
-      <button class="btn btn--primary" data-action="start">Начать →</button>
-      <button class="btn btn--ghost" data-screen-toggle="disclaimer">Прочитать дисклеймер</button>
+    <div class="splash-scene">
+      <div class="food-chip chip-a">Гречка</div>
+      <div class="food-chip chip-b">Овсянка</div>
+      <div class="food-chip chip-c">Рыба</div>
+      <div class="food-chip chip-d">Овощи</div>
+      <div class="food-chip chip-e">Мясо</div>
+      <div class="food-chip chip-f">Яйца</div>
+
+      <div class="splash-person" aria-hidden="true">
+        <svg viewBox="0 0 220 260" width="220" height="260">
+          <ellipse cx="110" cy="248" rx="70" ry="10" fill="#000" opacity="0.08"/>
+          <path d="M60 250 Q60 150 110 150 Q160 150 160 250 Z" fill="#5EC5B6" stroke="#111" stroke-width="4"/>
+          <circle cx="110" cy="95" r="52" fill="#FFE0C2" stroke="#111" stroke-width="4"/>
+          <path d="M58 80 Q60 30 110 32 Q160 30 162 80 Q150 55 110 55 Q70 55 58 80Z" fill="#7A4A2B" stroke="#111" stroke-width="4"/>
+          <path d="M88 96 q8 -8 16 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M116 96 q8 -8 16 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M96 122 q14 10 28 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M60 120 Q40 90 62 70" stroke="#FFE0C2" stroke-width="16" fill="none" stroke-linecap="round"/>
+          <path d="M160 120 Q180 90 158 70" stroke="#FFE0C2" stroke-width="16" fill="none" stroke-linecap="round"/>
+          <path d="M60 120 Q40 90 62 70" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.25"/>
+        </svg>
+      </div>
+
+      <div class="bolt bolt-1">/</div>
+      <div class="bolt bolt-2">/</div>
+      <div class="splash-small-cloud sc-1">1) непереносимость</div>
+      <div class="splash-small-cloud sc-2">2) аллергия</div>
+      <div class="splash-small-cloud sc-3">3) запрет врача</div>
+      <div class="splash-small-cloud sc-4">4) этих продуктов нет у нас</div>
+    </div>
+
+    <button class="btn btn-hero" id="splash-go">Хочу разобраться</button>
+    <p class="splash-hint">Нажмите в любом месте, чтобы продолжить</p>
+  </div>
+</section>
+
+<!-- ЭКРАН 2: ЗНАКОМСТВО -->
+<section id="screen-intro" class="screen screen-intro">
+  <div class="intro-wrap">
+    <div class="speech-bubble">
+      <h2>Не паникуй.</h2>
+      <p>Я тебе помогу и учту не только твои ограничения, но и твои пожелания и предпочтения, и конечно, наличие продуктов в твоём регионе.</p>
+      <p>Но сначала нам надо подружиться. Давай познакомимся.</p>
+      <p>И чтобы начать наш путь, нажми на кнопку <b>СТАРТ</b>.</p>
+    </div>
+
+    <div class="intro-people">
+      <div class="person helper" aria-hidden="true">
+        <svg viewBox="0 0 160 220" width="150" height="210">
+          <ellipse cx="80" cy="210" rx="55" ry="8" fill="#000" opacity="0.08"/>
+          <path d="M40 212 Q40 120 80 120 Q120 120 120 212 Z" fill="#F4C430" stroke="#111" stroke-width="4"/>
+          <circle cx="80" cy="78" r="42" fill="#FFE0C2" stroke="#111" stroke-width="4"/>
+          <path d="M40 66 Q42 26 80 28 Q118 26 120 66 Q108 45 80 45 Q52 45 40 66Z" fill="#3B2A1A" stroke="#111" stroke-width="4"/>
+          <circle cx="66" cy="80" r="4" fill="#111"/>
+          <circle cx="94" cy="80" r="4" fill="#111"/>
+          <path d="M68 96 q12 8 24 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M118 140 q28 -6 36 24" stroke="#F4C430" stroke-width="14" fill="none" stroke-linecap="round"/>
+          <path d="M118 140 q28 -6 36 24" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.25"/>
+        </svg>
+      </div>
+      <div class="person user" aria-hidden="true">
+        <svg viewBox="0 0 160 220" width="150" height="210">
+          <ellipse cx="80" cy="210" rx="55" ry="8" fill="#000" opacity="0.08"/>
+          <path d="M46 212 Q40 150 80 150 Q120 150 114 212 Z" fill="#F7A8C4" stroke="#111" stroke-width="4"/>
+          <path d="M40 152 Q40 122 80 122 Q120 122 120 152 Z" fill="#5EC5B6" stroke="#111" stroke-width="4"/>
+          <circle cx="80" cy="80" r="42" fill="#FFE0C2" stroke="#111" stroke-width="4"/>
+          <path d="M40 74 Q40 30 80 32 Q120 30 120 74 Q120 96 112 104 Q112 60 80 58 Q48 60 48 104 Q40 96 40 74Z" fill="#6B4A2A" stroke="#111" stroke-width="4"/>
+          <circle cx="66" cy="82" r="4" fill="#111"/>
+          <circle cx="94" cy="82" r="4" fill="#111"/>
+          <path d="M70 100 q10 4 20 0" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <text x="120" y="40" font-size="34" fill="#F7A8C4" font-weight="bold">?</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="intro-decor d1">Брокколи</div>
+    <div class="intro-decor d2">Лосось</div>
+    <div class="intro-decor d3">Яблоко</div>
+    <div class="intro-decor d4">Рис</div>
+
+    <div class="start-zone">
+      <div class="start-arrow" aria-hidden="true">
+        <svg viewBox="0 0 80 60" width="70" height="52"><path d="M6 10 Q40 6 60 40" stroke="#F7A8C4" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M60 40 l-14 -4 M60 40 l-2 -14" stroke="#F7A8C4" stroke-width="6" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <button class="btn btn-start" id="intro-start">СТАРТ</button>
     </div>
   </div>
-</header>
+</section>
 
-<nav class="shell">
-  <div class="shell__brand">Навигатор <em>питания</em></div>
-  <div class="shell__progress" id="progress"></div>
-  <button class="shell__icon" data-screen-toggle="disclaimer" aria-label="Дисклеймер">ⓘ</button>
-</nav>
+<!-- ЭКРАН 3: ЛЕНДИНГ -->
+<section id="screen-landing" class="screen screen-landing"></section>
 
-<main class="stage" id="stage"></main>
+<!-- ЭКРАН 4: ЛИЧНЫЙ КАБИНЕТ -->
+<section id="screen-app" class="screen screen-app"></section>
 
-<nav class="dock">
-  <button class="dock__btn is-active" data-screen-toggle="today"><span>🏠</span><small>Сегодня</small></button>
-  <button class="dock__btn" data-screen-toggle="plan"><span>🗓</span><small>План</small></button>
-  <button class="dock__btn" data-screen-toggle="foods"><span>🥕</span><small>Продукты</small></button>
-  <button class="dock__btn" data-screen-toggle="diary"><span>📓</span><small>Дневник</small></button>
-  <button class="dock__btn" data-screen-toggle="more"><span>⋯</span><small>Ещё</small></button>
-</nav>
-
-<div class="toast" id="toast" hidden></div>
-
-<script src="https://cdn.jsdelivr.net/gh/Gulkin-m/navigator-pitaniya@main/seed.js?v=2"></script>
-<script src="https://cdn.jsdelivr.net/gh/Gulkin-m/navigator-pitaniya@main/app.js?v=2"></script>
-
+<script>
+/* Cache-busting: снимаем регистрацию старого SW перед загрузкой */
+(function(){
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      regs.forEach(function(r){ r.unregister(); });
+    }).catch(function(){});
+  }
+})();
+</script>
+<script src="seed.js?v=2"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>
